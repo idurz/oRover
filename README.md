@@ -42,8 +42,13 @@ Download the script, from https://bootstrap.pypa.io/get-pip.py.
 `python get-pip.py`
 
 ## Instal Flask
-The webserver we use to control oRover is designed around [Flask](https://palletsprojects.com/p/flask/). If not already present, install Flak in your PI with the following commands.
+The webserver we use to control oRover is designed around [Flask](https://palletsprojects.com/p/flask/). Flask is a lightweight WSGI web application framework. It is designed to make getting started quick and easy, with the ability to scale up to complex applications. It began as a simple wrapper around Werkzeug and Jinja and has become one of the most popular Python web application frameworks. 
+
+If not already present, install Flak in your PI with the following commands.
 
 `pip install -U Flask`
 
 ## Install oRover webserver
+After completing the above Flask step we have all the conditions met to install the oRover web server. Install this with the following command...
+
+git...
