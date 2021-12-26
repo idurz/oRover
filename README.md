@@ -48,7 +48,13 @@ If not already present, install Flak in your PI with the following commands.
 
 `pip install -U Flask`
 
-## Install oRover webserver
-After completing the above Flask step we have all the conditions met to install the oRover web server. Install this with the following command...
+## Install oRover
+After completing the above Flask step we have all the conditions met to install the oRover web server. Download the code with
 
-git...
+`git clone https://github.com/idurz/oRover.git`
+
+Now install the webserver on the PI
+
+`bla bla` 
+
+
