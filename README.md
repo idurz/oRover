@@ -48,6 +48,11 @@ If not already present, install Flak in your PI with the following commands.
 
 `pip install -U Flask`
 
+## Instal pyserial
+The oRover webserver communicates with the Arduino motor controller via a serial port. If not already present, install pySerial in your PI with the following commands.
+
+`pip install pyserial`
+
 ## Install oRover
 After completing the above Flask step we have all the conditions met to install the oRover web server. Download the code with
 
