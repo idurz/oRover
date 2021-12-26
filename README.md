@@ -15,7 +15,7 @@ Check which python version you are running with the command:
 
 `python --version`
 
-  * If the answer started with "Python 3" -> You are done with this step; start installing Flask
+  * If the answer started with "Python 3" -> You are done with this step; [start installing Flask](https://github.com/idurz/oRover/blob/main/README.md#instal-flask)
   * If the answer started with "Python 2" or the command failed try 
 
 `python3 --version`
