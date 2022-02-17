@@ -87,6 +87,19 @@ def calcMotorActions(ser,speed,x,y):
     rightdirection = "F" # Init 
 
     if speed == 0:
+        command_stream = 'S;' 
+     #% \
+     #                ( leftdirection,  leftspeed ,
+     #                  rightdirection, rightspeed,
+     #                  leftdirection,  leftspeed,
+     #                  rightdirection, rightspeed)
+
+        try:
+            ser.write(bytes(command_stream.encode()))
+        except serial.SerialTimeoutException:
+            serial_open = False
+            return 'Motor controller did not accept the command'
+#    return command_stream
         return "hello"  #motor(ser,"S")
 
     angle = round(math.degrees(math.atan2(x,y))) # degrees
@@ -142,7 +155,7 @@ def calcMotorActions(ser,speed,x,y):
     if ser == None:
         return "Serial port not open"
 
-    command_stream = 'MFLD%sS%s;MFRD%sS%s;MRLD%sS%s;MRRD%sS%s' % \
+    command_stream = 'MFLD%sS%02.0f;MFRD%sS%02.0f;MRLD%sS%02.0f;MRRD%sS%02.0f;' % \
                      ( leftdirection,  leftspeed ,
                        rightdirection, rightspeed,
                        leftdirection,  leftspeed,
