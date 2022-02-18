@@ -11,9 +11,11 @@ oRover is intended to become an Observation Robot which you can send around in y
 This projects is for us a study-and-play project. It is not complete. It might never be complete. But it helps us learning a bit about robotics and autonomous driving. Next to that, the project servers as a nice excuse for project-evenings, where the social aspect is also an important topic. 
 Anyway although it is not complete, this project might give you some ideas, or even better, perhaps you can share your experience with us! Feel free to reach out to us with positive feedback!
 
-^ Version ^ Date ^ Status ^
-| 0.2 | Feb 2022 | Motors running |
-| 0.1 | Oct 2021 | Initial Idea | 
+
+| Version | Date     | Status                                                 |
+|---------|----------|--------------------------------------------------------|
+| 0.2     | Feb 2022 | Motors running                                         |
+| 0.1     | Oct 2021 | Initial Idea                                           | 
 
 ## Documentation
-Have a look at the Wiki for installation and build instructions.
+Have a look at the [Wiki](https://github.com/idurz/oRover/wiki) for installation and build instructions.
