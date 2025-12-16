@@ -22,7 +22,7 @@ StaticJsonDocument<512> jsonInfoHttp;
 #include <Adafruit_ICM20X.h>
 #include <Adafruit_ICM20948.h>
 #include <Adafruit_Sensor.h>
-
+// End of TEST
   
 // functions for barrery info.
 #include "battery_ctrl.h"
