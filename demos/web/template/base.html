@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    {% block head %}
+    <!-- Basic Page Needs
+      –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+      <meta charset="utf-8">
+      <title>LockManager</title>
+      <meta name="description" content="Admin Console For Electronic Locks based on BLE and or RFID">
+      <meta name="author" content="Forza Consiglio B.V.">
+
+    <!-- Mobile Specific Metas
+      –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <!-- FONT
+      –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+      <link href="//fonts.googleapis.com/css?family=Raleway:400,300,600" rel="stylesheet" type="text/css">
+
+    <!-- CSS
+      –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+      <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='normalize.css') }}">
+      <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='skeleton.css') }}">
+      <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='custom.css') }}">
+      
+    <!-- SCRIPT
+      –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+         <script src="//ajax.googleapis.com/ajax/libs/jquery/2.2.4/jquery.min.js"></script>
+         <script src="{{ url_for('static', filename='site.js') }}"></script>
+      
+    <!-- Favicon
+      –––––––––––––––––––––––––––––––––––––––––––––––––– -->
+      <link rel="icon" type="image/png" href="images/favicon.png">
+    {% endblock %}
+</head>
+<body>
+   <div class="container">
+    <div class="navbar-spacer"></div>
+    <nav class="navbar">
+      <div class="container">
+        <ul class="navbar-list">
+{% if not session['logged_in'] %}
+          <li class="navbar-item"><a class="navbar-link" href="/user/login">Login</a></li>
+{% else %}
+          <li class="navbar-item"><a class="navbar-link" href="/user/logout">Logout</a></li>
+          <li class="navbar-item"><a class="navbar-link" href="/reader/list">Readers</a></li>
+          <li class="navbar-item"><a class="navbar-link" href="/tag/list">Tags</a></li>
+          <li class="navbar-item"><a class="navbar-link" href="/moment/list">Moments</a></li>
+          <li class="navbar-item"><a class="navbar-link" href="/user/list">Users</a></li>
+
+          <li class="navbar-item"><a class="navbar-link" href="/log/list">Logs</a></li>
+      <!--      <a class="navbar-link" href="/log/listall" data-popover="#moreNavPopover">Log</a>
+            <div id="moreNavPopover" class="popover">
+              <ul class="popover-list">
+                <li class="popover-item">
+                  <a class="popover-link" href="https://github.com/dhg/Skeleton">On Github</a>
+                </li>
+                <li class="popover-item">
+                  <a class="popover-link" href="https://github.com/dhg/Skeleton#browser-support">Browsers</a>
+                </li>
+                <li class="popover-item">
+                  <a class="popover-link" href="https://github.com/dhg/Skeleton#license">License</a>
+                </li>
+                <li class="popover-item">
+                  <a class="popover-link" href="https://github.com/dhg/Skeleton#extensions">Extensions</a>
+                </li>
+                <li class="popover-item">
+                  <a class="popover-link" href="https://github.com/dhg/Skeleton/releases">Versions</a>
+                </li>
+                <li class="popover-item">
+                  <a class="popover-link" href="https://github.com/dhg/Skeleton#colophon">Colophon</a>
+                </li> -->
+{% endif %}
+              </ul> <!-- ul class="navbar-list" -->
+            </div> <!-- div class="container" -->
+
+    </nav> <!-- nav class="navbar" -->
+    <div id="content">{% block content %}{% endblock %}</div>
+</div> <!-- main container -->
+</body>
+</html>

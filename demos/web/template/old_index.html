@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <!--
+    ###########################################################################
+    #
+    #   Copyright (C) 2022 C v Kruijsdijk & P. Zengers
+    #
+    #   This program uses a built-in webserver to control a surveillance robot
+    #
+    #   This program is free software: you can redistribute it and/or modify
+    #   it under the terms of the GNU General Public License as published by
+    #   the Free Software Foundation, either version 3 of the License, or
+    #   (at your option) any later version.
+    #
+    #   This program is distributed in the hope that it will be useful,
+    #   but WITHOUT ANY WARRANTY; without even the implied warranty of
+    #   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    #   GNU General Public License for more details.
+    # 
+    #   You should have received a copy of the GNU General Public License
+    #   along with this program.  If not, see <https://www.gnu.org/licenses/>.
+    #
+    #   You can contact the authors via their git profile
+    #
+    ###########################################################################
+  -->
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="oRover control page">
+  <meta name="author" content="C. van Kruijsdijk, P. Zengers">
+
+  <title>oRover</title>
+  <link rel="icon" type="image/png" href="images/favicon.png">
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"   
+          integrity="sha256-/xUj+3OJU5yExlq6GSYGSHk7tPXikynS7ogEvDej/m4=" 
+          crossorigin="anonymous">
+  </script>
+  <script src="{{ url_for('static', filename='js/JoyStick/joy.js') }}"></script>
+</head>
+
+<body>
+  <div id="menu">
+   <li class="navbar-item"><a class="navbar-link" href="/config">Config</a></li>
+  </div>
+  <div id="content">
+
+    <h1><center>Control oRover</center></h1>
+    <div style="width:25%"></div>
+    <div id="joy1Div" style="width:200px;height:200px;margin:50px;position:fixed;bottom:30px;left:500px;"></div>
+    <br>
+    <div id="msg">{{ topmsg }}</div>
+
+  </div> <!--- id="content" -->
+
+  <script>
+  
+    var LastReceived = Date.now(); // Last Received command
+    var MinInterval = 250; // Minimum interval (ms) between 2 commands
+
+    // Create JoyStick object into the DIV joy1Div
+    var Joy1 = new JoyStick('joy1Div', {}, function(stickData) {
+      // Act only when data is different and time is at least 100 ms
+      if (Date.now() - LastReceived > MinInterval &&
+         stickData.x < 101 && stickData.y < 101) {
+
+        LastReceived = Date.now();
+
+        // Calc speed, credits Pythagoras
+        speed = Math.sqrt(Math.pow(Math.abs(stickData.x),2) + 
+                          Math.pow(Math.abs(stickData.y),2)
+                         );
+        speed = Math.round(Math.min(speed, 100),2); // Max 100 and round to int
+
+        //if (stickData.y < 0) speed = 0 - speed; // Negative if Y negative
+        console.log('speed=' + speed + " x=" + stickData.x + " y=" + stickData.y);
+        // Fire command to webserver
+        $.get('move?speed=' + speed + "&x=" + stickData.x + "&y=" + stickData.y,
+              function(data) {
+              $("#msg").html( data ); 
+        })
+      }
+    });
+
+  </script>
+</body>
+</html>
