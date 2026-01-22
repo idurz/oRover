@@ -1,0 +1,1 @@
+This directory contains the files needed on the host computer which sends commands down to the ESP board
