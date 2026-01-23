@@ -145,7 +145,9 @@ def control():
     # Handle actions: forward, back, left, right
     # Replace the following with your actual control logic
     if action == "forward":
-        send_cmd(ser, 1, 1)
+        send_cmd(ser, 0.5, 0.5)
+    elif action == "stop":
+        send_cmd(ser, 0, 0)
     elif action == "back":
         state["speed"] = max(state["speed"] - 1.0, -10.0)
     elif action == "left":
