@@ -145,13 +145,15 @@ def control():
     # Handle actions: forward, back, left, right
     # Replace the following with your actual control logic
     if action == "forward":
-        send_cmd(ser, 1, 1)
+        send_cmd(ser, 0.5, 0.5)
+    elif action == "stop":
+        send_cmd(ser, 0, 0)
     elif action == "back":
-        state["speed"] = max(state["speed"] - 1.0, -10.0)
+        send_cmd(ser, -0.5, -0.5)
     elif action == "left":
-        state["angle"] = max(state["angle"] - 5.0, -90.0)
+        send_cmd(ser, 0, 0.5)
     elif action == "right":
-        state["angle"] = min(state["angle"] + 5.0, 90.0)
+        send_cmd(ser, 0.5, 0)
     else:
         return jsonify({"status": "unknown action"}), 400
 
