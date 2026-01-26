@@ -3,7 +3,7 @@
 
 """
 File: hcsr04_test.py
-Copyright (C) 2022 C v Kruijsdijk & P. Zengers
+Copyright (C) 2026 C v Kruijsdijk & P. Zengers
 License: MIT License
 Created: 2026-01-25
 Description:
