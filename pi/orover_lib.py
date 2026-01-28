@@ -69,6 +69,15 @@ class origin:
         arm_joint_2                 = 2011
         gripper                     = 2020
 
+    class controller:
+        motion_controller           = 3000
+        power_manager               = 3010
+        safety_system               = 3020
+        vision_system               = 3030
+        navigation_system           = 3040
+        path_planner                = 3050 
+        remote_interface            = 3060
+    
 
 class tell:
     """Robot command, state, and event enumeration class"""
@@ -79,7 +88,7 @@ class tell:
         stop                        = 3001  # Stop robot operation controlled
         pause                       = 3002  # Freeze all actions
         resume                      = 3003  # Resume after pause
-        shutdown                    = 3004  # Shutdown robot
+        shutdown                    = 3004  # Shutdown robot software
         reboot                      = 3005  # Reboot robot systems
         reset                       = 3006  # Reset faults and continue operation
 
