@@ -10,7 +10,7 @@ Description:
     The BOSS
 """
 
-import time
+
 import zmq
 import orover_lib
 import json
@@ -27,9 +27,8 @@ while True:
     if "value" in message:
        v = message['value'].get('distance')
        d = v['distance']
-       u = v['unit']
 
-       print(f"BOSS: Warning: object to close from sensor {message['source']}: distance {d} {u}")
+       print(f"BOSS: Warning: object to close from sensor {message['source']}: distance {d} cm")
        socket.send(b"OK")
     else:
        a = f"Received request: {message} without distance !!"

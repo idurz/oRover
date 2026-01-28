@@ -10,19 +10,19 @@ Description:
     Test client for the BOSS
 """
 import zmq
-from orover_lib import tell
-import json
+import orover_lib as osys
 import time
-import sys
 import RPi.GPIO as GPIO
 
+
 print("Starting Client")
+config = osys.readConfig()
 
 # open zmg
 context = zmq.Context()
 print("Connecting to Server on port 5555")
 socket = context.socket(zmq.REQ)
-socket.connect("tcp://localhost:5555")
+socket.connect(config.boss.socket)
 
 TRIGGER_PIN = 17  # Pin of the first trigger
 ECHO_PIN    = 27  # Pin of the common echo (must be an interrupt pin)
@@ -66,11 +66,12 @@ def main():
         while True:
             distance = measure_distance()
             if not distance is None and distance < 20:
-                answer = tell.toboss(socket, 
-                                    {"source":"sensor.ultrasonic.front", 
-                                     "priority": tell.priority.low,
-                                     "type": tell.VisionEvent.pathBlocked,
-                                     "value": {"distance": distance, "unit": "cm"}})
+                answer = osys.tell.toboss(socket, 
+                                    {"src":  osys.origin.sensor.ultrasonic_front
+                                    ,"prio": osys.priority.low
+                                    ,"type": osys.tell.VisionEvent.objectDetected
+                                    ,"values": {"distance": distance}
+                                    })
                 print(f"HCSR04: Boss told me {answer}")
 
             time.sleep(0.5)
