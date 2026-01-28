@@ -248,17 +248,18 @@ class tell:
             return False    
 
         # Construct the message to send to the boss
-        msg = {"id"  : str(uuid.uuid4()),
-               "ts"  : datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f'),
-               "src" : source_value,
-               "prio": prio_value,
-               "type": type_value,
-               "body": {"value" : value_field}
+        msg = {"id"  : str(uuid.uuid4())
+              ,"ts"  : datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+              ,"src" : data.get("src")
+              ,"prio": prio_value
+              ,"type": data.get("type")
+              ,"body": data.get("body")
               } 
         
         socket.send((json.dumps(msg).encode('utf-8')))
         answer = socket.recv()
 
         return answer
+
     
  
