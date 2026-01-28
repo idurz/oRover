@@ -54,5 +54,5 @@ while True:
     elif message['type'] == osys.tell.system.shutdown:
         do_system.shutdown(socket, message)
     else: 
-        a = f"Received request: {message} with unsupported type {message['type']} !!"
+        a = f"Received request: {message} with unsupported type {osys.tell.getname(message['type'])} !!"
         socket.send(a.encode('utf-8'))

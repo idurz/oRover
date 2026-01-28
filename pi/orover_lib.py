@@ -36,7 +36,6 @@ def readConfig():
 
 class priority:
     """Robot message priority levels enumeration class"""
-
     low                             =    1 # Low priority, background messages
     normal                          =    5 # Normal priority, standard messages
     high                            =   10 # High priority, only for critical messages
@@ -78,133 +77,169 @@ class origin:
         path_planner                = 3050 
         remote_interface            = 3060
     
+    all_origins = {**sensor.__dict__, **actuator.__dict__, **controller.__dict__}
 
 class tell:
     """Robot command, state, and event enumeration class"""
     
     # System Commands
-    class System:
-        start                       = 3000  # Start robot operation
-        stop                        = 3001  # Stop robot operation controlled
-        pause                       = 3002  # Freeze all actions
-        resume                      = 3003  # Resume after pause
-        shutdown                    = 3004  # Shutdown robot software
-        reboot                      = 3005  # Reboot robot systems
-        reset                       = 3006  # Reset faults and continue operation
+    class cmd:
+        class system:
+            start                       = 3000  # Start robot operation
+            stop                        = 3001  # Stop robot operation controlled
+            pause                       = 3002  # Freeze all actions
+            resume                      = 3003  # Resume after pause
+            shutdown                    = 3004  # Shutdown robot software
+            reboot                      = 3005  # Reboot robot systems
+            reset                       = 3006  # Reset faults and continue operation
 
     # Motion Commands
-    class Motion:
-        move                        = 3100  # Move to relative position
-        moveTo                      = 3101  # Move to absolute position
-        rotate                      = 3102  # Rotate to relative angle in place
-        setVelocity                 = 3103  # Set constant velocity
-        stopMotion                  = 3104  # Stop all motion immediately
-        dock                        = 3105  # Dock to charging station
-        undock                      = 3106  # Undock from charging station
+        class motion:
+            move                        = 3100  # Move to relative position
+            moveTo                      = 3101  # Move to absolute position
+            rotate                      = 3102  # Rotate to relative angle in place
+            setVelocity                 = 3103  # Set constant velocity
+            stopMotion                  = 3104  # Stop all motion immediately
+            dock                        = 3105  # Dock to charging station
+            undock                      = 3106  # Undock from charging station
 
     # Actuator Commands
-    class Actuator:
-        setPosition                 = 3200  # Set actuator position for servo or arm joint
-        setSpeed                    = 3201  # Set actuator motor speed
-        setTorque                   = 3202  # Set actuator torque
-        open                        = 3203  # Open gripper or valve
-        close                       = 3204  # Close gripper or valve
-        enable                      = 3205  # Power on actuator
-        disable                     = 3206  # Power off actuator
+        class actuator:
+            setPosition                 = 3200  # Set actuator position for servo or arm joint
+            setSpeed                    = 3201  # Set actuator motor speed
+            setTorque                   = 3202  # Set actuator torque
+            open                        = 3203  # Open gripper or valve
+            close                       = 3204  # Close gripper or valve
+            enable                      = 3205  # Power on actuator
+            disable                     = 3206  # Power off actuator
 
     # Sensor Commands
-    class Sensor:
-        calibrate                   = 3300  # Calibrate sensor
-        startStream                 = 3301  # Enable streaming sensor data
-        stopStream                  = 3302  # Disable streaming sensor data
-        setRate                     = 3303  # Set sensor sampling rate
-        setRange                    = 3304  # Set sensor measurement range  
+        class sensor:
+            calibrate                   = 3300  # Calibrate sensor
+            startStream                 = 3301  # Enable streaming sensor data
+            stopStream                  = 3302  # Disable streaming sensor data
+            setRate                     = 3303  # Set sensor sampling rate
+            setRange                    = 3304  # Set sensor measurement range  
 
     # Config Commands
-    class Config:
-        setParam                    = 3400 # Set configuration parameter
-        getParam                    = 3401 # Get configuration parameter
-        loadProfile                 = 3402 # Load configuration profile
-        saveProfile                 = 3403 # Save configuration profile
+        class config:
+            setParam                    = 3400 # Set configuration parameter
+            getParam                    = 3401 # Get configuration parameter
+            loadProfile                 = 3402 # Load configuration profile
+            saveProfile                 = 3403 # Save configuration profile
 
     # System State
-    class SystemState:
-        mode                        = 4000  # Returns manual, autonomous, safe, maintenance
-        lifecycle                   = 4001  # Returns current lifecycle state: initializing, running, stopping, stopped
-        health                      = 4002  # Returns overall system health status: ok, degraded, fault
-        uptime                      = 4003  # Returns system uptime in seconds
+    class state:
+        class system:
+            mode                        = 4000  # Returns manual, autonomous, safe, maintenance
+            lifecycle                   = 4001  # Returns current lifecycle state: initializing, running, stopping, stopped
+            health                      = 4002  # Returns overall system health status: ok, degraded, fault
+            uptime                      = 4003  # Returns system uptime in seconds
 
     # Motion State
-    class MotionState:
-        pose                        = 4100 # Returns current position and orientation, x, y, theta
-        velocity                    = 4101 # Returns current linear and angular velocity
-        goal                        = 4102 # Returns current motion goal or target
-        motion                      = 4103 # Returns current motion status: idle, moving, rotating, docking
+        class motion:
+            pose                        = 4100 # Returns current position and orientation, x, y, theta
+            velocity                    = 4101 # Returns current linear and angular velocity
+            goal                        = 4102 # Returns current motion goal or target
+            motion                      = 4103 # Returns current motion status: idle, moving, rotating, docking
 
     # Power State
-    class PowerState:
-        battery                     = 4200 # Returns current battery level percentage and voltage
-        charging                    = 4201 # Returns charging status: true or false
-        powerSource                 = 4202 # Returns current power source: battery, external, solar
-        temperature                 = 4203 # Returns current battery temperature in Celsius
+        class power:
+            battery                     = 4200 # Returns current battery level percentage and voltage
+            charging                    = 4201 # Returns charging status: true or false
+            source                      = 4202 # Returns current power source: battery, external, solar
+            temperature                 = 4203 # Returns current battery temperature in Celsius
 
     # Actuator State
-    class ActuatorState:
-        position                    = 4300 # Returns current actuator position joint angles or linear position
-        speed                       = 4301 # Returns current actuator speed rpm or linear speed
-        enabled                     = 4302 # Returns current actuator enabled status true or false
-        load                        = 4303 # Returns current actuator load torque and current
+        class actuator:
+            position                    = 4300 # Returns current actuator position joint angles or linear position
+            speed                       = 4301 # Returns current actuator speed rpm or linear speed
+            enabled                     = 4302 # Returns current actuator enabled status true or false
+            load                        = 4303 # Returns current actuator load torque and current
 
     # Sensor State
-    class SensorState:
-        sensorStatus                = 4400 # Returns current sensor status: ok, error, calibrating, offline
-        lastUpdate                  = 4401 # Returns timestamp of last sensor data update
-        signalQuality               = 4402 # Returns current sensor signal quality metric
-        dataRate                    = 4403 # Returns current sensor data rate in Hz
+        class sensor:
+            status                      = 4400 # Returns current sensor status: ok, error, calibrating, offline
+            lastUpdate                  = 4401 # Returns timestamp of last sensor data update
+            signalQuality               = 4402 # Returns current sensor signal quality metric
+            dataRate                    = 4403 # Returns current sensor data rate in Hz
 
+    class event:
     # Safety Events
-    class SafetyEvent:
-        emergencyStop               = 5000 # Emergency stop activated
-        collisionDetected           = 5001 # Collision detected
-        obstacleDetected            = 5002 # Obstacle detected, to close to path
-        overcurrent                 = 5003 # Overcurrent detected, motor overload
-        overtemperature             = 5004 # Overtemperature detected, too hot
-        lowBattery                  = 5005 # Critical low battery detected
+        class safety:
+            emergencyStop               = 5000 # Emergency stop activated
+            collisionDetected           = 5001 # Collision detected
+            obstacleDetected            = 5002 # Obstacle detected, to close to path
+            overcurrent                 = 5003 # Overcurrent detected, motor overload
+            overtemperature             = 5004 # Overtemperature detected, too hot
+            lowBattery                  = 5005 # Critical low battery detected
     
     # System Events
-    class SystemEvent:
-        startupComplete             = 5100 # System startup completed, oRover ready
-        shutdownInitiated           = 5101 # System shutdown initiated
-        modeChanged                 = 5102 # System mode changed
-        faultRaised                 = 5103 # System fault raised
-        faultCleared                = 5104 # System fault cleared
+        class system:
+            startupComplete             = 5100 # System startup completed, oRover ready
+            shutdownInitiated           = 5101 # System shutdown initiated
+            modeChanged                 = 5102 # System mode changed
+            faultRaised                 = 5103 # System fault raised
+            faultCleared                = 5104 # System fault cleared
     
     # Task Events
-    class TaskEvent:
-        goalReached                 = 5200 # Navigation target reached
-        goalFailed                  = 5201 # Navigation target failed
-        docked                      = 5202 # Successfully docked
-        undocked                    = 5203 # Successfully undocked
+        class task:
+            goalReached                 = 5200 # Navigation target reached
+            goalFailed                  = 5201 # Navigation target failed
+            docked                      = 5202 # Successfully docked
+            undocked                    = 5203 # Successfully undocked
 
-    # Vision Events
-    class VisionEvent:
-        objectDetected              = 5300 # Object detected in vision system
-        pathBlocked                 = 5301 # Route blocked by obstacle
-        markerDetected              = 5302 # Marker detected in vision system
-        humanDetected               = 5303 # Human detected in vision system
-        lineLost                    = 5304 # Line lost in vision system
+    # Detection Events
+        class detected:
+            object                      = 5300 # Object detected in vision system
+            pathBlocked                 = 5301 # Route blocked by obstacle
+            marker                      = 5302 # Marker detected in vision system
+            human                       = 5303 # Human detected in vision system
+            lineLost                    = 5304 # Line lost in vision system
+
     # External Events
-    class ExternalEvent:
-        manualOverride              = 5400 # Manual override activated, operator took control
-        remoteCommand               = 5401 # Remote command received from external system
-        heartbeatTimeout            = 5402 # Heartbeat timeout detected, lost connection
-        configChanged               = 5403 # Configuration changed
+        class external:
+            manualOverride              = 5400 # Manual override activated, operator took control
+            remoteCommand               = 5401 # Remote command received from external system
+            heartbeatTimeout            = 5402 # Heartbeat timeout detected, lost connection
+            configChanged               = 5403 # Configuration changed
 
+    all_commands = {**tell.cmd.system.__dict__, **tell.cmd.motion.__dict__, **tell.cmd.actuator.__dict__, **tell.cmd.sensor.__dict__, **tell.cmd.config.__dict__}
+    all_states   = {**tell.state.system.__dict__, **tell.state.motion.__dict__, **tell.state.power.__dict__, **tell.state.actuator.__dict__, **tell.state.sensor.__dict__}
+    all_events   = {**tell.event.safety.__dict__, **tell.event.system.__dict__, **tell.event.task.__dict__, **tell.event.detected.__dict__, **tell.event.external.__dict__}  
+    all_tells    = {**all_commands, **all_states, **all_events}
 
 
 # -----------------------------------------
 # --- Utility Functions from tell class ---
 # -----------------------------------------
+
+    def getname(value, category=None):
+        """Find the name and path of a tell value by its number.
+        Args:
+            value: The numeric value to find (e.g., 4001)
+            category: Optional filter - 'cmd', 'state', or 'event'
+        Returns:
+            List of tuples: (full_path, attribute_name)
+        """
+        results = []
+    
+        def search(obj, prefix="tell"):
+            for key, val in obj.__dict__.items():
+                if isinstance(val, (int, float)) and val == value:
+                    full_path = f"{prefix}.{key}"
+                    results.append((full_path, key))
+                elif hasattr(val, '__dict__') and not key.startswith('_'):
+                    search(val, f"{prefix}.{key}")
+    
+        if category:
+            search(getattr(tell, category), f"tell.{category}")
+        else:
+            search(tell)
+    
+        return results
+
+
 
     def toboss(socket, data):
         """"        Send a message to the BOSS via the provided socket.
@@ -231,16 +266,21 @@ class tell:
             if field not in data:
                 print (f"{data} does not contain '{field}' field")
                 return False
-            
+        
+        type_value = data.get("type")   
+        if type_value not in tell.all_tells.__dict__.values():
+            print (f"{data} has invalid 'type' field")
+            return False
+        
         source_value = data.get("src")
-        type_value = data.get("type")
-        body_field = data.get("body") 
+        if source_value not in tell.all_origins.__dict__.values():
+            print (f"{data} has invalid 'src' field")
+            return False
 
+        body_field = data.get("body")   
         if "value" not in body_field:
             print (f"{data} does not contain 'value' field in 'body'")
             return False
-        else:
-            value_field = body_field.get("value")   
 
         prio_value = data.get("prio", priority.low)
         if prio_value not in priority.__dict__.values():
@@ -250,16 +290,14 @@ class tell:
         # Construct the message to send to the boss
         msg = {"id"  : str(uuid.uuid4())
               ,"ts"  : datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
-              ,"src" : data.get("src")
+              ,"src" : source_value
+              ,"me"  : os.path.basename(__file__)
               ,"prio": prio_value
               ,"type": data.get("type")
-              ,"body": data.get("body")
+              ,"body": body_field
               } 
         
         socket.send((json.dumps(msg).encode('utf-8')))
         answer = socket.recv()
 
         return answer
-
-    
- 
