@@ -25,8 +25,8 @@ def main():
     answer = osys.tell.toboss(socket, 
                                     {"src":  osys.origin.controller.remote_interface
                                     ,"prio": osys.priority.low
-                                    ,"type": osys.tell.system.shutdown
-                                    ,"body": {"reason":"maintenance"}
+                                    ,"type": osys.tell.cmd.system.shutdown
+                                    ,"body": {"value":"maintenance"}
                                     })
     print(f"HCSR04: Boss told me {answer}")
 

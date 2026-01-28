@@ -204,9 +204,9 @@ class tell:
             heartbeatTimeout            = 5402 # Heartbeat timeout detected, lost connection
             configChanged               = 5403 # Configuration changed
 
-    all_commands = {**tell.cmd.system.__dict__, **tell.cmd.motion.__dict__, **tell.cmd.actuator.__dict__, **tell.cmd.sensor.__dict__, **tell.cmd.config.__dict__}
-    all_states   = {**tell.state.system.__dict__, **tell.state.motion.__dict__, **tell.state.power.__dict__, **tell.state.actuator.__dict__, **tell.state.sensor.__dict__}
-    all_events   = {**tell.event.safety.__dict__, **tell.event.system.__dict__, **tell.event.task.__dict__, **tell.event.detected.__dict__, **tell.event.external.__dict__}  
+    all_commands = {**cmd.system.__dict__, **cmd.motion.__dict__, **cmd.actuator.__dict__, **cmd.sensor.__dict__, **cmd.config.__dict__}
+    all_states   = {**state.system.__dict__, **state.motion.__dict__, **state.power.__dict__, **state.actuator.__dict__, **state.sensor.__dict__}
+    all_events   = {**event.safety.__dict__, **event.system.__dict__, **event.task.__dict__, **event.detected.__dict__, **event.external.__dict__}  
     all_tells    = {**all_commands, **all_states, **all_events}
 
 
@@ -268,12 +268,12 @@ class tell:
                 return False
         
         type_value = data.get("type")   
-        if type_value not in tell.all_tells.__dict__.values():
+        if type_value not in tell.all_tells.values():
             print (f"{data} has invalid 'type' field")
             return False
         
         source_value = data.get("src")
-        if source_value not in tell.all_origins.__dict__.values():
+        if source_value not in origin.all_origins.values():
             print (f"{data} has invalid 'src' field")
             return False
 

@@ -49,10 +49,10 @@ while True:
          socket.send(a.encode('utf-8'))
          continue
 
-    if message['type'] == osys.tell.VisionEvent.objectDetected:
-        do_VisionEvent.objectDetected(socket, message)
-    elif message['type'] == osys.tell.system.shutdown:
-        do_system.shutdown(socket, message)
+    if message['type'] == osys.tell.event.detected.object:
+        do_VisionEvent_objectDetected(socket, message)
+    elif message['type'] == osys.tell.cmd.system.shutdown:
+        do_system_shutdown(socket, message)
     else: 
         a = f"Received request: {message} with unsupported type {osys.tell.getname(message['type'])} !!"
         socket.send(a.encode('utf-8'))
