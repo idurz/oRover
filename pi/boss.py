@@ -1,17 +1,24 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
 """
-File: boss.py
-Copyright (C) 2026 C v Kruijsdijk & P. Zengers
-License: MIT License
-Created: 2026-01-27
-Description:
-    The BOSS
+    #####    RRRRRR     ######    V     V   EEEEEEE   RRRRRR
+   #     #   R     R   #      #   V     V   E         R     R
+   #     #   R     R   #      #    V   V    E         R     R
+   #     #   RRRRRR    #      #    V   V    EEEEE     RRRRRR
+   #     #   R   R     #      #     VV      E         R   R
+    #####    R    R     ######      VV      EEEEEEE   R    R  
+   Observation Remote Operated Vehicle Rover 
+
+   File:        boss.py
+   Copyright    (C) 2026 C v Kruijsdijk & P. Zengers
+   License:     MIT License
+   Created:     2026-01-27
+   Description: The BOSS server for the ROVER. Cebtral point to receive 
+                messages from clients and take appropriate actions to 
+                actuators or respond to clients
 """
 
-
-import zmq
+import zmq # pyright: ignore[reportMissingImports]
 import orover_lib as osys
 import json
 
@@ -20,21 +27,23 @@ socket = context.socket(zmq.REP)
 socket.bind("tcp://*:5555")
 
 def do_VisionEvent_objectDetected(socket, message):
-    if "values" in message:
-       v = message['values'].get('distance')
-       d = v
+    body = message.get('body', {})
+    v = body.get('value', {})
+    d = v.get('distance')
 
-       print(f"BOSS: Warning: object to close from sensor {message['src']}: distance {d} cm")
+    if d is not None:
+       print(f"BOSS: Warning: object too close from sensor {message.get('src')}: distance {d} cm")
        socket.send(b"OK")
     else:
        a = f"Received request: {message} without distance !!"
        socket.send(a.encode('utf-8'))
 
+
 def do_system_shutdown(socket, message):
-    reason = message['body'].get('reason','unknown')
+    reason = message.get('body', {}).get('value', 'unknown')
     print(f"BOSS: Shutdown requested, reason: {reason}")
     socket.send(b"Shutting down all systems")
-    socket.close()
+    socket.close(linger=2500)
     context.term()
     exit(0)
 
@@ -49,10 +58,10 @@ while True:
          socket.send(a.encode('utf-8'))
          continue
 
-    if message['type'] == osys.tell.event.detected.object:
+    if message['type'] == osys.event.object_detected:
         do_VisionEvent_objectDetected(socket, message)
-    elif message['type'] == osys.tell.cmd.system.shutdown:
+    elif message['type'] == osys.cmd.shutdown:
         do_system_shutdown(socket, message)
     else: 
-        a = f"Received request: {message} with unsupported type {osys.tell.getname(message['type'])} !!"
+        a = f"Received request: {message} with unsupported type {osys.tell_name(message['type'])} !!"
         socket.send(a.encode('utf-8'))

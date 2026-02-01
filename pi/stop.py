@@ -1,34 +1,34 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""
-File: stop.py
-Copyright (C) 2026 C v Kruijsdijk & P. Zengers
-License: MIT License
-Created: 2026-01-27
-Description:
-    Request boss to stop and close all connections
-"""
-import zmq
-import orover_lib as osys
+"""  #####    RRRRRR     ######    V     V   EEEEEEE   RRRRRR
+    #     #   R     R   #      #   V     V   E         R     R
+    #     #   R     R   #      #    V   V    E         R     R
+    #     #   RRRRRR    #      #    V   V    EEEEE     RRRRRR
+    #     #   R   R     #      #     VV      E         R   R
+     #####    R    R     ######      VV      EEEEEEE   R    R  
 
-print("Requesting BOSS to stop")
-config = osys.readConfig()
+   License:     MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
+   Description: Manual gracefull shutdown of the BOSS server"""
 
-# open zmg
-context = zmq.Context()
-print("Connecting to BOSS")
-socket = context.socket(zmq.REQ)
-socket.connect(config['boss']['socket'])
+import zmq # pyright: ignore[reportMissingImports]
+import orover_lib as orover
+#import json, uuid, os
+from datetime import datetime
 
 def main():
-    answer = osys.tell.toboss(socket, 
-                                    {"src":  osys.origin.controller.remote_interface
-                                    ,"prio": osys.priority.low
-                                    ,"type": osys.tell.cmd.system.shutdown
-                                    ,"body": {"value":"maintenance"}
-                                    })
-    print(f"HCSR04: Boss told me {answer}")
+
+    print("Requesting BOSS to stop")
+    socket = orover.connect_to_server()
+
+    answer = orover.send(socket
+               ,src=orover.controller.remote_interface
+               ,type=orover.cmd.shutdown
+               ,body={"value": "maintenance"})
+    if answer:
+        print(f"Boss told me {answer}")
+
+    orover.disconnect_from_server(socket)
 
 if __name__ == "__main__":
     main()
