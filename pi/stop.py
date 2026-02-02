@@ -23,7 +23,7 @@ def main():
 
     answer = orover.send(socket
                ,src=orover.controller.remote_interface
-               ,type=orover.cmd.shutdown
+               ,reason=orover.cmd.shutdown
                ,body={"value": "maintenance"})
     if answer:
         print(f"Boss told me {answer}")
@@ -32,3 +32,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+

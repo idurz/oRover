@@ -23,7 +23,26 @@ import configparser, os, sys, uuid, json
 
 configfile_name = 'config.ini' # Where to find the global configuration
 config = None   # No config retrieved yet
+KNOWN_FIELDS = ["id","ts","src","me","pid","host","prio","reason","body"]
 
+def all_fields_present(cls,message):
+    """ Check if all fields are present. Message should contain KNOWN_FIELDS
+            "id"  : UUID
+           ,"ts"    : datetime of message in '%Y-%m-%dT%H:%M:%S.%f' format
+           ,"src"   : message source, e.g. specific sensor or actuator, should be in class origin
+           ,"me"    : sending script name
+           ,"pid"   : sending pid of script
+           ,"host"  : sending node
+           ,"prio"  : priority of message, should be in class priority
+           ,"reason": type of message, should be in class origin, state, event, origin, actuator, controller, priority, cmd
+           ,"body"  : contains parameters depending on type of message
+    """
+    afp = True
+    for s in KNOWN_FIELDS:
+        if not s in message:
+           afp = False
+           break
+    return afp
 
 def readConfig():
     """ Read configuration from config.ini file.
@@ -94,14 +113,14 @@ def disconnect_from_server(socket):
     socket.close()
 
 
-def send(socket,src,type,body={},prio=None):
+def send(socket,src,reason,body={},prio=None):
     """Send a message to the BOSS via the provided socket.
     Args:
         socket:  zmq socket connected to the BOSS
         src:     who is sending the the message
         me       script file where the message originates from
-        type     type of the message
-        body     optional parameteres
+        reason   type of the message
+        body     optional parameteres depending on reason
         prio (optional): priority level of the message
 
     Returns:
@@ -111,14 +130,12 @@ def send(socket,src,type,body={},prio=None):
     Raises:
         None    
     """
-
-    # Check if src is an instance of one of the allowed enums
-    if not isinstance(src, (origin, actuator, controller)):
+    if not isinstance (src,(origin, actuator, controller)):
         print (f"Invalid 'src' field, must be known enum ({src})")
         return False
     
-    if not isinstance(type, (cmd, state, event)):
-        print (f"Invalid 'type' field must be known enum ({type})")
+    if not isinstance(reason, (cmd, state, event)):
+        print (f"Invalid 'reason' field must be known enum ({reason})")
         return False
 
     # check if body is valid json
@@ -142,9 +159,11 @@ def send(socket,src,type,body={},prio=None):
     msg = {"id"  : str(uuid.uuid4())
           ,"ts"  : datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
           ,"src" : src
-          ,"me"  : os.path.basename(__file__)
+          ,"me"  : sys.argv[0]
+          ,"pid" : os.getpid()
+          ,"host": os.uname().nodename
           ,"prio": prio
-          ,"type": type
+          ,"reason": reason
           ,"body": body_field
           } 
 
@@ -187,6 +206,13 @@ class origin(IntEnum):
     sensor_temperature                 = 1060
     sensor_battery                     = 1070
 
+    @classmethod
+    def find_by_name(cls, name: str) -> int | None:
+        try:
+            return origin[name]
+        except KeyError:
+            return None
+
 @unique
 class actuator(IntEnum):
     left_wheel_motor                   = 2000
@@ -204,8 +230,6 @@ class controller(IntEnum):
     navigation_system                  = 3040
     path_planner                       = 3050
     remote_interface                   = 3060
-
-
 
 @unique
 class cmd(IntEnum):
