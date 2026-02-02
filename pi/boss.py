@@ -8,9 +8,9 @@
      #####    R    R     ######      VV      EEEEEEE   R    R  
 
    License:     MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
-   Description: The BOSS server for the ROVER. Cebtral point to receive messages
-                from clients and take appropriate actions to actuators or 
-                respond to clients"""
+   Description: The BOSS server for the ROVER. The central message
+                handler that dispatches messages to the appropriate
+                handler routines."""
 
 import zmq # pyright: ignore[reportMissingImports]
 import orover_lib as orover
@@ -18,6 +18,7 @@ import json, sys, uuid
 import logging
 from pythonjsonlogger.json import JsonFormatter
 from datetime import datetime
+import boss_handler as handler
 
 config = orover.readConfig()
 logger = logging.getLogger()
@@ -26,9 +27,9 @@ logger.setLevel(logging.INFO)
 #    format='%(asctime)s %(levelname)-8s %(message)s',
 #    level=logging.INFO,
 #    datefmt='%Y-%m-%d %H:%M:%S')
-handler = logging.FileHandler(config.get('boss','logfile',fallback="orover.log"))
-handler.setFormatter(JsonFormatter("{asctime} {message}", style="{"))
-logger.addHandler(handler)
+logh = logging.FileHandler(config.get('boss','logfile',fallback="orover.log"))
+logh.setFormatter(JsonFormatter("{asctime} {message}", style="{"))
+logger.addHandler(logh)
 
 
 try:
@@ -44,31 +45,6 @@ try:
 except Exception as e: 
     sys.exit(f"Could not bind socket. Exception {e}" )
 
-
-# ----------------------------------------
-
-def handle_event_object_detected(message):
-    sensor = orover.get_name(message.get('src'))
-    body = message.get('body', {})
-    if not "distance" in body:
-        return f"message {message['id']} received without distance parameter in body"
-    
-    d = body.get('distance',0)
-    print(f"BOSS: Warning: object too close to sensor {sensor} distance {d} cm")
-    return "OK"
-
-
-def handle_cmd_shutdown(message):
-    print(f"Shutdown message {message}")
-    reason = message.get('body', {}).get('value', 'unknown')
-    print(f"BOSS: Shutdown requested, reason: {reason}")
-    socket.send(b"Shutting down all systems")
-    socket.close(linger=2500)
-    context.term()
-    logger.info('Finished')
-    exit(0)
-
-# ----------------------------------------
 
 def valid_uuid(id):
     try:
@@ -122,16 +98,16 @@ def read_requests():
     
     # No check on "me","pid","host","body"
 
-    DISPATCH = {orover.event.object_detected:            handle_event_object_detected
-               ,orover.cmd.shutdown:                     handle_cmd_shutdown
+    DISPATCH = {orover.event.object_detected:            handler.event_object_detected
+               ,orover.cmd.shutdown:                     handler.cmd_shutdown
                }
 
     try:
-        handler = DISPATCH[message['reason']]
+        handler_routine = DISPATCH[message['reason']]
     except KeyError:
         return f"Discarding message {message['id']}: >>{message['reason']}<< is not a valid message reason!"
        
-    result = handler(message)
+    result = handler_routine(message)
     logger.info("Request handled", extra = {"request" : message, "result" : result})
     return result
 
