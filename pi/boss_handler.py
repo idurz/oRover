@@ -10,6 +10,7 @@
    License:     MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
    Description: The BOSS server for the ROVER. This file contains the 
                 handlers for boss."""
+import orover_lib as orover
 
 class handler:
     """ Contains the handlers for BOSS messages """
