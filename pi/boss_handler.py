@@ -15,7 +15,7 @@ class handler:
     """ Contains the handlers for BOSS messages """
 
 
-    def handle_event_object_detected(message):
+    def event_object_detected(message):
         """ Handler for object detected events
             Parameters:
                 message:   The standard message dictionary
@@ -36,7 +36,7 @@ class handler:
         return "OK"
 
 
-    def handle_cmd_shutdown(socket,message,context, logger):
+    def cmd_shutdown(socket,message,context, logger):
         """ Handler for shutdown command
             Parameters:
                 socket:    The ZMQ socket to send reply to
