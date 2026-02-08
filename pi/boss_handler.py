@@ -60,7 +60,7 @@ def cmd_shutdown(socket,message,context, logger):
     logger.info('Finished')
     exit(0)
 
-def toactuar_motor_wheels(message):
+def actuator_motor_wheels(message):
     """ Handler for object detected events
         Parameters:
             ser: serial port
