@@ -215,8 +215,7 @@ class origin(IntEnum):
 
 @unique
 class actuator(IntEnum):
-    left_wheel_motor                   = 2000
-    right_wheel_motor                  = 2001
+    motor_wheels                       = 2000
     arm_joint_1                        = 2010
     arm_joint_2                        = 2011
     gripper                            = 2020
@@ -249,6 +248,7 @@ class cmd(IntEnum):
     stopMotion                         = 4104
     dock                               = 4105
     undock                             = 4106
+    set_motor_speed                    = 4107
 
     setPosition                        = 4200
     setSpeed                           = 4201

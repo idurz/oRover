@@ -16,7 +16,7 @@ import zmq # pyright: ignore[reportMissingImports]
 import orover_lib as orover
 import json, sys, uuid
 import logging
-from pythonjsonlogger.json import JsonFormatter
+from pythonjsonlogger.jsonlogger import JsonFormatter
 from datetime import datetime
 import boss_handler as handler
 
@@ -100,6 +100,7 @@ def read_requests():
 
     DISPATCH = {orover.event.object_detected:            handler.event_object_detected
                ,orover.cmd.shutdown:                     handler.cmd_shutdown
+               ,orover.actuator.motor_wheels:            handler.actuator_motor_wheels
                }
 
     try:
