@@ -2,6 +2,7 @@ from flask import Flask, render_template, jsonify, request
 from motor import *
 import os
 import sys
+import serial
 import time
 import argparse
 import math
@@ -21,7 +22,13 @@ config = None       # No config retrieved yet
 msg = ''            # Nothing to tell yet
 #socket = None # global socket
 
+# ---------------- CONFIG ----------------
+UART_PORT = "/dev/serial0"
+BAUDRATE = 115200
+# ----------------------------------------
 commands = []
+ser = serial.Serial(UART_PORT, BAUDRATE, timeout=1)
+ser_lock = threading.Lock()
 
 global socket
 # open zmg
@@ -42,13 +49,14 @@ def rx_commands():
     #execute commands
     for distance, angle in commands:
         print(f"Driving {distance} m")
-#        drive_straight(ser, distance)                       ombouwen naar socket
+        drive_straight(ser, distance)
 
         time.sleep(0.5)
 
         print(f"Turning {angle} degrees")
- #       rotate(ser, angle)                                 ombouwen naar socket
+        rotate(ser, angle)
 
+#    ser.close()
     print("Done.")
 
 app = Flask(__name__)
@@ -102,34 +110,26 @@ def control():
     action = data.get("action")
     # Handle actions: forward, back, left, right
     # Replace the following with your actual control logic
-    # Map actions to motor speeds
     if action == "forward":
-        left_speed = 0.5
-        right_speed = 0.5
+        answer = orover.send(socket
+#                            ,src = orover.actuator.motor_wheels remote_interface
+                            ,src = orover.controller.remote_interface
+                            ,reason = orover.cmd.set_motor_speed
+                            ,body = {"left_speed": 0.5, "right_speed": 0.5})
+        if answer:
+            print(f"Boss told me {answer}")
+#       send_cmd(ser, 0.5, 0.5)
+#        print(f"Boss told me {answer}")
+    elif action == "stop":
+        send_cmd(ser, 0, 0)
     elif action == "back":
-        left_speed = -0.5
-        right_speed = -0.5
+        send_cmd(ser, -0.5, -0.5)
     elif action == "left":
-        left_speed = -0.3
-        right_speed = 0.3
+        send_cmd(ser, 0, 0.5)
     elif action == "right":
-        left_speed = 0.3
-        right_speed = -0.3
+        send_cmd(ser, 0.5, 0)
     else:
-        return {"error": f"Unknown action: {action}"}, 400
-
-    # Send command to BOSS
-    answer = orover.send(
-        socket,
-        src=orover.controller.remote_interface,       # Who is sending
-        reason=orover.cmd.set_motor_speed,      # Must be a command enum (2000-range)
-        body={"left_speed": left_speed, "right_speed": right_speed}
-    )
-
-    if answer:
-        print(f"Boss told me {answer}")
-
-    return jsonify({"status": "unknown action"}), 400
+        return jsonify({"status": "unknown action"}), 400
 
     # Example: small temp/voltage drift to show changes
     state["temperature"] += 0.01

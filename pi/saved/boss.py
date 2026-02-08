@@ -16,15 +16,9 @@ import zmq # pyright: ignore[reportMissingImports]
 import orover_lib as orover
 import json, sys, uuid
 import logging
-import serial
 from pythonjsonlogger.jsonlogger import JsonFormatter
 from datetime import datetime
 import boss_handler as handler
-
-# ---------------- CONFIG ----------------
-UART_PORT = "/dev/serial0"
-BAUDRATE = 115200
-# ----------------------------------------
 
 config = orover.readConfig()
 logger = logging.getLogger()
@@ -37,7 +31,6 @@ logh = logging.FileHandler(config.get('boss','logfile',fallback="orover.log"))
 logh.setFormatter(JsonFormatter("{asctime} {message}", style="{"))
 logger.addHandler(logh)
 
-ser = serial.Serial(UART_PORT, BAUDRATE, timeout=1)
 
 try:
     context = zmq.Context()
