@@ -1,57 +1,64 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-"""  #####    RRRRRR     ######    V     V   EEEEEEE   RRRRRR
-    #     #   R     R   #      #   V     V   E         R     R
-    #     #   R     R   #      #    V   V    E         R     R
-    #     #   RRRRRR    #      #    V   V    EEEEE     RRRRRR
-    #     #   R   R     #      #     VV      E         R   R
-     #####    R    R     ######      VV      EEEEEEE   R    R  
+"""  o R o v e r  Object Recognition and Versatile Exploration Robot
+     License      MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
+     Description  The BOSS server for the ROVER.
+"""
 
-   License:     MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
-   Description: The BOSS server for the ROVER. The central message
-                handler that dispatches messages to the appropriate
-                handler routines."""
-
-import zmq # pyright: ignore[reportMissingImports]
+#import signal
+#import zmq # pyright: ignore[reportMissingImports]
 import orover_lib as orover
-import json, sys, uuid
-import logging
-import serial
-from pythonjsonlogger.jsonlogger import JsonFormatter
-from datetime import datetime
-import boss_handler as handler
+import json
+#import sys
+#import uuid
+import time
+#import logging
+#import serial
+#from pythonjsonlogger.jsonlogger import JsonFormatter
+#from datetime import datetime
+#import boss_handler as handler
+#import signal
+from base_process import BaseProcess
 
 # ---------------- CONFIG ----------------
-UART_PORT = "/dev/serial0"
-BAUDRATE = 115200
+#UART_PORT = "/dev/serial0"
+#BAUDRATE = 115200
 # ----------------------------------------
 
-config = orover.readConfig()
-logger = logging.getLogger()
-logger.setLevel(logging.INFO)
+#config = orover.readConfig()
+##logger = logging.getLogger()
+#logger.setLevel(logging.INFO)
 #logging.basicConfig(
 #    format='%(asctime)s %(levelname)-8s %(message)s',
 #    level=logging.INFO,
 #    datefmt='%Y-%m-%d %H:%M:%S')
-logh = logging.FileHandler(config.get('boss','logfile',fallback="orover.log"))
-logh.setFormatter(JsonFormatter("{asctime} {message}", style="{"))
-logger.addHandler(logh)
+##logh = logging.FileHandler(config.get('boss','logfile',fallback="orover.log"))
+#logh.setFormatter(JsonFormatter("{asctime} {message}", style="{"))
+#logger.addHandler(logh)
 
-ser = serial.Serial(UART_PORT, BAUDRATE, timeout=1)
+#ser = serial.Serial(UART_PORT, BAUDRATE, timeout=1)
 
-try:
-    context = zmq.Context()
-    context.setsockopt(zmq.SNDTIMEO,config.getint('boss','send_timeout',fallback=2500))
+#try:
+#    context = zmq.Context()
+#    context.setsockopt(zmq.SNDTIMEO,config.getint('boss','send_timeout',fallback=2500))
 
-except Exception as e: 
-    sys.exit(f"Could not create ZMQ context. Exception {e}" )
+#except Exception as e: 
+#    sys.exit(f"Could not create ZMQ context. Exception {e}" )
 
-try:
-    socket = context.socket(zmq.REP)
-    socket.bind(config.get('boss','boss_socket',fallback='tcp://*:5555'))
-except Exception as e: 
-    sys.exit(f"Could not bind socket. Exception {e}" )
+#try:
+##    socket = context.socket(zmq.REP)
+#    socket.bind(config.get('boss','boss_socket',fallback='tcp://*:5555'))
+#except Exception as e: 
+#    sys.exit(f"Could not bind socket. Exception {e}" )
 
+class boss_server(BaseProcess):
+    def loop(self):
+        while True:
+            topicmsg = self.sub.recv_string()
+            topic, msg = self.demogrify(topicmsg)
+            print(f"topic = {topic}, BOSS: {msg}")
+            err = handle_message(msg)
+            print(f"handler: {err}")
 
 def valid_uuid(id):
     try:
@@ -77,14 +84,12 @@ def valid_priority(prio):
     return prio in orover.priority
 
 
-def read_requests():
-    #  Wait for next request from client
-    m = socket.recv()
+def handle_message(m):
 
     # Check if valid json else discard
     try:
         message = json.loads(m.decode('utf-8'))
-    except ValueError as e:
+    except:
         return f"Discarding non-json message"
     
     # Check if all messages are present
@@ -120,14 +125,82 @@ def read_requests():
     return result
 
 
-def main():
-    global logger, config, context, socket
-  
-    logger.info('Started')
-   
-    while True:
-       answer = read_requests()
-       socket.send(answer.encode('utf-8'))
+# Signal handler for graceful shutdown of child processes
+#def terminate(signalNumber, frame):
+##    global started_processes
+#    print('Requested to stop')
+
+    # requesting child processes to stop
+#    for p in started_processes:
+#        print(f"Terminating process {p['name']} with PID {p['process'].pid}")   
+#        p["process"].terminate(signalNumber)
+#    sys.exit()
+
+class handler:
+#""" Contains the handlers for BOSS messages """
+
+    def event_object_detected(message):
+        """ Handler for object detected events
+            Parameters:
+                message:   The standard message dictionary
+                    body of message shoud contain parameter 'distance' 
+                    with distance in cm (float)
+            Returns:
+                on error string with error description
+                on success string "OK" 
+        """
+        sensor = orover.get_name(message.get('src'))
+        body = message.get('body', {})
+        if not "distance" in body:
+            return f"message {message['id']} received without distance parameter in body"
+       
+        d = body.get('distance',0)
+        # dummy action: print warning if object too close
+        print(f"BOSS: Warning: object too close to sensor {sensor} distance {d} cm")
+        return "OK"
+    
+    def cmd_shutdown(socket,message,context, logger):
+        """ Handler for shutdown command
+            Parameters:
+                    socket:    The ZMQ socket to send reply to
+                    message:   The standard message dictionary
+                        body of message may contain parameter 'value'
+                        with reason for shutdown (string). If not present,
+                        reason is 'unknown'
+                    context:   The ZMQ context to terminate
+                    logger:    The logger to log shutdown message
+                Returns:
+                    This handler does not return, it shuts down the server
+                    However it sends an "OK" reply before shutting down
+            """
+        print(f"Shutdown message {message}")
+        reason = message.get('body', {}).get('value', 'unknown')
+        print(f"BOSS: Shutdown requested, reason: {reason}")
+        socket.send(b"OK")
+        socket.close(linger=2500)
+        context.term()
+        logger.info('Finished')
+        exit(0)
+    
+    def cmd_set_motor_speed(message):
+        """ Handler for object detected events
+            Parameters:
+                ser: serial port
+                left_speed: left wheel speed
+                right_speed: right wheel speedS
+            Returns:
+                on error string with error description
+                on success string "OK" 
+        """
+        source = orover.get_name(message.get('src'))
+        print(f"BOSS: in actuator_motor_wheels {source}")
+        body = message.get('body', {})
+        if not "left_speed" in body:
+            return f"message {message['id']} received without left_speed parameter in body"
+      
+        return "OK"
+    
 
 if __name__ == "__main__":
-    main()
+    p = boss_server()
+    p.loop()

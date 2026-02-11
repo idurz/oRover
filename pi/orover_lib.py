@@ -44,137 +44,123 @@ def all_fields_present(cls,message):
            break
     return afp
 
-def readConfig():
-    """ Read configuration from config.ini file.
-    Returns:
-        ConfigParser object with configuration data.
-    Raises:
-        SystemExit: if the configuration file does not exist.   
-    """
-    if not os.path.isfile(configfile_name):
-        sys.exit("Configuration file does not exist")
+# def readConfig():
+#     """ Read configuration from config.ini file.
+#     Returns:
+#         ConfigParser object with configuration data.
+#     Raises:
+#         SystemExit: if the configuration file does not exist.   
+#     """
+#     if not os.path.isfile(configfile_name):
+#         sys.exit("Configuration file does not exist")
 
-    config = configparser.ConfigParser() 
-    config.read(configfile_name)
-    return config
-
-
-def get_name(val):
-    """Return the best-effort name for a numeric type.
-       Reverse lookup through cmd, state, event enums.
-       Arguments:
-           val: numeric value to lookup
-       Returns:
-           Name of the matching enum member, or str(val) if not found
-    """
-    for cls in (cmd, state, event, origin, actuator, controller, priority):
-        try:
-            return cls(val).name
-        except Exception:
-            pass
-    return str(val)
+#     config = configparser.ConfigParser() 
+#     config.read(configfile_name)
+#     return config
 
 
-def connect_to_server():
-    """Connect to BOSS server via ZMQ
-    Args:
-        None
 
-    Returns:
-        ZMQ socket or None when socket connect was not succesfull
 
-    Raises:
-        sys.exit on errors
-    """
-    config = readConfig()
-    try:
-        context = zmq.Context()
-        context.setsockopt(zmq.SNDTIMEO,config.getint('boss','send_timeout',fallback=2500))
-        context.setsockopt(zmq.RCVTIMEO,config.getint('boss','receive_timeout',fallback=2500))
-    except Exception as e: 
-        sys.exit(f"Could not create ZMQ context. Exception {e}" )
+# def connect_to_server():
+#     """Connect to BOSS server via ZMQ
+#     Args:
+#         None
+
+#     Returns:
+#         ZMQ socket or None when socket connect was not succesfull
+
+#     Raises:
+#         sys.exit on errors
+#     """
+#     config = readConfig()
+#     try:
+#         context = zmq.Context()
+#         context.setsockopt(zmq.SNDTIMEO,config.getint('boss','send_timeout',fallback=2500))
+#         context.setsockopt(zmq.RCVTIMEO,config.getint('boss','receive_timeout',fallback=2500))
+#     except Exception as e: 
+#         sys.exit(f"Could not create ZMQ context. Exception {e}" )
     
-    try:
-        socket = context.socket(zmq.REQ)
-        socket.connect(config.get('boss','client_socket'))
-    except Exception as e: 
-        sys.exit(f"Could not connect to BOSS. Exception {e}" )
+#     try:
+#         socket = context.socket(zmq.REQ)
+#         socket.connect(config.get('boss','client_socket'))
+#     except Exception as e: 
+#         sys.exit(f"Could not connect to BOSS. Exception {e}" )
 
-    return socket
-
-
-def disconnect_from_server(socket):
-    """Disconnects client from the boss server
-    Args:
-        socket:  zmq socket connected to the BOSS
-    Returns:
-        nothing
-    """
-    socket.close()
+#     return socket
 
 
-def send(socket,src,reason,body={},prio=None):
-    """Send a message to the BOSS via the provided socket.
-    Args:
-        socket:  zmq socket connected to the BOSS
-        src:     who is sending the the message
-        me       script file where the message originates from
-        reason   type of the message
-        body     optional parameteres depending on reason
-        prio (optional): priority level of the message
+#def disconnect_from_server(socket):
+##    """Disconnects client from the boss server
+#    Args:
+#        socket:  zmq socket connected to the BOSS
+#    Returns:
+#        nothing
+#    """
+#    socket.close()
 
-    Returns:
-        The response received from the BOSS.
-            False            if the data is invalid, no action taken, 
-            True             if the message was sent successfully
-    Raises:
-        None    
-    """
-    if not isinstance (src,(origin, actuator, controller)):
-        print (f"Invalid 'src' field, must be known enum ({src})")
-        return False
+
+# def send(socket,src,reason,body={},prio=None):
+#     """Send a message to the BOSS via the provided socket.
+#     Args:
+#         socket:  zmq socket connected to the BOSS
+#         src:     who is sending the the message
+#         me       script file where the message originates from
+#         reason   type of the message
+#         body     optional parameteres depending on reason
+#         prio (optional): priority level of the message
+
+#     Returns:
+#         The response received from the BOSS.
+#             False            if the data is invalid, no action taken, 
+#             True             if the message was sent successfully
+#     Raises:
+#         None    
+#     """
+#     if not isinstance (src,(origin, actuator, controller)):
+#         print (f"Invalid 'src' field, must be known enum ({src})")
+#         return False
     
-    if not isinstance(reason, (cmd, state, event)):
-        print (f"Invalid 'reason' field must be known enum ({reason})")
-        return False
+#     if not isinstance(reason, (cmd, state, event)):
+#         print (f"Invalid 'reason' field must be known enum ({reason})")
+#         return False
 
-    # check if body is valid json
-    body_field = body
-    if isinstance(body, str):
-        try:
-            body_field = json.loads(body)
-        except (json.JSONDecodeError, ValueError):
-            print (f"{body} is not valid JSON")
-            return False
+#     # check if body is valid json
+#     body_field = body
+#     if isinstance(body, str):
+#         try:
+#             body_field = json.loads(body)
+#         except (json.JSONDecodeError, ValueError):
+#             print (f"{body} is not valid JSON")
+#             return False
 
-    # priority: accept an int or Priority member
+#     # priority: accept an int or Priority member
     
-    if prio is None:
-        prio = priority.normal
-    if not isinstance(prio,priority):
-        print (f"Invalid 'prio' field must be known enum ({prio})")
-        return False    
+#     if prio is None:
+#         prio = priority.normal
+#     if not isinstance(prio,priority):
+#         print (f"Invalid 'prio' field must be known enum ({prio})")
+#         return False    
 
-    # Construct the message to send to the boss
-    msg = {"id"  : str(uuid.uuid4())
-          ,"ts"  : datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
-          ,"src" : src
-          ,"me"  : sys.argv[0]
-          ,"pid" : os.getpid()
-          ,"host": os.uname().nodename
-          ,"prio": prio
-          ,"reason": reason
-          ,"body": body_field
-          } 
+#     # Construct the message to send to the boss
+#     msg = {"id"  : str(uuid.uuid4())
+#           ,"ts"  : datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+#           ,"src" : src
+#           ,"me"  : sys.argv[0]
+#           ,"pid" : os.getpid()
+#           ,"host": os.uname().nodename
+#           ,"prio": prio
+#           ,"reason": reason
+#           ,"body": body_field
+#           } 
 
-    socket.send_json(msg)
-    try:
-        answer = socket.recv()
-    except Exception as e: 
-        print(f"Receiving ZMQ anwer failed with exception {e}") 
-        return False
+#     socket.send_json(msg)
+#     try:
+#         answer = socket.recv()
+#     except Exception as e: 
+#         print(f"Receiving ZMQ anwer failed with exception {e}") 
+#         return False
 
-    return answer
+#     return answer
     
 
 # -----------------------------------------
@@ -190,8 +176,37 @@ class priority(IntEnum):
     high                               =   10  # High priority, only for critical messages
 
 @unique
+class operational_mode(IntEnum):
+    """Robot operational modes enumeration."""
+    idle                               =  100 # Idle mode, minimal activity, waiting for commands
+    active                             =  101 # Active mode, performing tasks and operations
+    maintenance                        =  102 # Maintenance mode, for diagnostics and repairs
+
+@unique
+class lifecycle_stage(IntEnum):
+    """Robot lifecycle stages enumeration."""
+    startup                            =  200 # Startup stage, initializing systems and preparing for operation
+    running                            =  201 # Running stage, normal operation and task execution
+    shutdown                           =  202 # Shutdown stage, safely powering down systems and preparing for transport or storage
+
+@unique
+class power_source(IntEnum):
+    """Robot power sources enumeration."""
+    battery                            =  300 # Battery power source, providing energy for mobility and operations
+    mains                              =  301 # Mains power source, for stationary operation or charging
+    solar                              =  302 # Solar power source, utilizing solar panels for energy generation
+
+@unique
+class health_status(IntEnum):
+    """Robot health status enumeration."""
+    healthy                            =  400 # Healthy status, all systems functioning properly
+    warning                            =  401 # Warning status, potential issues detected that may require attention
+    critical                           =  402 # Critical status, significant issues detected that require immediate attention to prevent damage or failure
+
+@unique
 class origin(IntEnum):
     """Robot known message sources grouped as Enums."""
+    heartbeat                          = 1000
     sensor_ultrasonic_front            = 1001
     sensor_ultrasonic_rear             = 1002
     sensor_ultrasonic_left             = 1003
@@ -205,6 +220,10 @@ class origin(IntEnum):
     sensor_wheel_encoder_right         = 1051
     sensor_temperature                 = 1060
     sensor_battery                     = 1070
+    sensor_collision_front             = 1080   
+    sensor_collision_rear              = 1081
+    sensor_collision_top               = 1082
+    
 
     @classmethod
     def find_by_name(cls, name: str) -> int | None:
@@ -323,7 +342,7 @@ class event(IntEnum):
 
     manualOverride                     = 6400
     remoteCommand                      = 6401
-    heartbeatTimeout                   = 6402
+    heartbeat                          = 6402
     configChanged                      = 6403
 
     #all_commands = {m.value: m for grp in (cmd.system, cmd.motion, cmd.actuator, cmd.sensor, cmd.config) for m in grp}

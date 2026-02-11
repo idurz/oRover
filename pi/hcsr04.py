@@ -1,39 +1,32 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-"""  #####    RRRRRR     ######    V     V   EEEEEEE   RRRRRR
-    #     #   R     R   #      #   V     V   E         R     R
-    #     #   R     R   #      #    V   V    E         R     R
-    #     #   RRRRRR    #      #    V   V    EEEEE     RRRRRR
-    #     #   R   R     #      #     VV      E         R   R
-     #####    R    R     ######      VV      EEEEEEE   R    R  
+"""  o R o v e r  Object Recognition and Versatile Exploration Robot
+        License      MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
+        Description  HCSR04 sensor client for the ROVER BOSS server
+"""  
 
-   License:     MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
-   Description: HCSR04 sensor client for the ROVER BOSS server
-"""
-
-import zmq # pyright: ignore[reportMissingImports]
-import orover_lib as orover
-import time, os, signal, sys
+import time
+from base_process import BaseProcess
 import RPi.GPIO as GPIO # pyright: ignore[reportMissingImports]
+import orover_lib as orover
 
-from datetime import datetime
+class Ultrasonic(BaseProcess):
+    def loop(self,sensors,object_notify_distance):
+        while True:
+            #Each sensor turn by turn
+            for s in sensors:
+                distance = measure_distance(s['echopin'],s['triggerpin'])
+                if not distance is None and distance < object_notify_distance:
+                    print(f"Object detected by sensor {s['sensorid']} at distance {distance} cm")
+                    if not self.send_event(src = s['sensorid']
+                                            ,reason = orover.event.object_detected
+                                            ,body = {"distance": distance}):
+                        print(f"hcssr04 Failed to send event for sensor {s['sensorid']}")   
+                time.sleep(0.5)
 
-socket = None # global socket
-config = orover.readConfig()
 
-
-def terminate(signalNumber, frame):
-    print('Requested to stop')
-
-    # disconnect
-    GPIO.cleanup()
-    orover.disconnect_from_server(socket)
-    sys.exit()
-
-
-def getsensorinfo():
-    global config
+def getsensorinfo(config):
     sensors = []
 
     if not config.has_section('hcsr04'):
@@ -76,7 +69,6 @@ def getsensorinfo():
         
     return sensors
 
-
 def measure_distance(echo, trigger):
     GPIO.output(trigger, True)
     time.sleep(0.00001)  # 10 µs
@@ -87,7 +79,7 @@ def measure_distance(echo, trigger):
     while GPIO.input(echo) == 0:
         if time.time() > timeout:
             return None
-        time.sleep(0.001)  # sleep 1 ms
+        #time.sleep(0.001)  # sleep 1 ms
     start = time.time()
 
     # Wait for echo end
@@ -95,23 +87,16 @@ def measure_distance(echo, trigger):
     while GPIO.input(echo) == 1:
         if time.time() > timeout:
            return None
-        time.sleep(0.001)  # sleep 1 ms
+        #time.sleep(0.001)  # sleep 1 ms
     duration = time.time() - start
     distance_cm = (duration * 34300.0) / 2.0  # Speed of sound: 34300 cm/s divided by 2 (to and from object)
     return round(distance_cm, 1)
 
 
-def main():    
-    global socket, config
-
-    print(f"HC-SR04 client. Send SIGTERM to exit to procesid {os.getpid()}")
-    signal.signal(signal.SIGTERM, terminate)
-
-    object_notify_distance = float(config.get('hcsr04','object_notify_distance',fallback=20.0))
-    sensors = getsensorinfo()
-
-    # open zmg
-    socket = orover.connect_to_server()
+if __name__ == "__main__":
+    p = Ultrasonic()
+    sensors = getsensorinfo(p.config)
+    object_notify_distance = float(p.config.get('hcsr04','object_notify_distance',fallback=20.0))
 
     # GPIO setup
     GPIO.setmode(GPIO.BCM) # use BCM pin numbering which is the same as the GPIO numbers
@@ -122,21 +107,4 @@ def main():
         GPIO.setup(s['triggerpin'],  GPIO.OUT) # trigger pin
         GPIO.output(s['triggerpin'], GPIO.LOW) # trigger pin
 
-    # continue until receiving SIGTERM
-    while True:
-        #Each sensor turn by turn
-        for s in sensors:
-            distance = measure_distance(s['echopin'],s['triggerpin'])
-            if not distance is None and distance < object_notify_distance:
-
-                answer = orover.send(socket
-                                    ,src = s['sensorid']
-                                    ,reason = orover.event.object_detected
-                                    ,body = {"distance": distance})
-                if answer:
-                    print(f"Boss told me {answer}")
-
-            time.sleep(0.5)
-
-if __name__ == "__main__":
-    main()
+    p.loop(sensors, object_notify_distance )

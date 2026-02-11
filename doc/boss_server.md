@@ -46,5 +46,5 @@ Uses logger.info(...) throughout; read_requests() logs handled requests with log
 Formatter is JSON-like when python-json-logger is available.
 
 ## Configuration items
-Check the table in [config.md](./config_mapping.md)
+Check the table in [configuration](./config_mapping)
 
