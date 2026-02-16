@@ -17,7 +17,18 @@ The goal of this project is to explore **autonomous navigation**, **computer vis
 
 ---
 
-## Detailled documentation
+## Prerequisites
+
+Install the following libraries before attempting to start oRover:
+
+```
+sudo apt install python3-serial
+sudo apt install python3-zmq
+sudo apt install python3-setproctitle
+sudo apt install python3-flask
+```
+
+## Detailed documentation
 
 Please follow link to [Technical Documentation](doc/technical%20documentation.md) for more information.
 

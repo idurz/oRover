@@ -7,14 +7,14 @@
                   and initiates shutdown if power is lost.
 """
 
-import configparser
-import argparse
 import os
 import sys
 import RPI.GPIO as GPIO
 import time
 import signal
-
+import logging, logging.handlers
+import oroverlib as orover
+import setproctitle
 
 # Signal handler for graceful shutdown of myself and child processes
 def terminate(signalNumber, frame):
@@ -24,30 +24,14 @@ def terminate(signalNumber, frame):
 
 #### Main execution starts here ####
 
+config = orover.readConfig()
+logger = orover.setlogger(config)
+setproctitle.setproctitle(f"orover:{orover.getmodulename(config)}")
 
-# Check if config file is given as argument, otherwise use default
-parser = argparse.ArgumentParser(description="oRover startup script"
-                                ,prog="python3 launcher.py")
-parser.add_argument("--config"
-                   ,type=str
-                   ,required=False
-                   ,default="config.ini"
-                   ,help="Path to configuration file (default: config.ini)")
+pin_number = config.getint("powercontrol","pin",fallback=4) #GPIO pin number to monitor, default is GPIO 4
+sleep_time = config.getfloat("powercontrol","sleep_time",fallback=  2.0) #Seconds to wait before shutdown after detecting power loss
 
-args = parser.parse_args()
-print(f"Using configuration file: {args.config}")
-
-# Read configuration from config.ini file
-config = None   
-if not os.path.isfile(args.config):
-    sys.exit(f"Configuration file {args.config} does not exist")
-
-config = configparser.ConfigParser() 
-config.read(args.config)
-
-pin_number = config.get("powercontrol","pin",fallback=4) #GPIO pin number to monitor for power control, default is GPIO 4
-sleep_time = config.getfloat("powercontrol","sleep_time",fallback=2.0) #Time to wait before shutdown after detecting power loss
-GPIO.setmode(GPIO.BCM) #Uses BCM pin numbering (i.e., the GPIO number, not the pin number)
+GPIO.setmode(GPIO.BCM) #Uses BCM pin numbering
 GPIO.setup(pin_number, GPIO.IN)
 
 # Start done, register signal handler for graceful shutdown
@@ -58,4 +42,4 @@ while True:
         time.sleep(sleep_time)
         if GPIO.input(pin_number) == 0: 
             os.system("sudo shutdown -h now") 
-    time.sleep(1)  
+    time.sleep(1)

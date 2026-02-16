@@ -1,172 +1,79 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""  #####    RRRRRR     ######    V     V   EEEEEEE   RRRRRR
-    #     #   R     R   #      #   V     V   E         R     R
-    #     #   R     R   #      #    V   V    E         R     R
-    #     #   RRRRRR    #      #    V   V    EEEEE     RRRRRR
-    #     #   R   R     #      #     VV      E         R   R
-     #####    R    R     ######      VV      EEEEEEE   R    R  
 
-   License:     MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
-   Created:     2026-01-27
-   Description: Library of constants and definitions for the ROVER BOSS system"""
+"""  o R o v e r  Object Recognition and Versatile Exploration Robot
+     License      MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
+     Description  ibrary of constants and definitions for the ROVER BOSS system
+"""
 
-import zmq # pyright: ignore[reportMissingImports]
-from datetime import datetime
+import argparse
+import configparser
 from enum import IntEnum, unique
-import configparser, os, sys, uuid, json
+import logging, logging.handlers
+import os
+import sys
 
-# -------------------------------------------------
-# ----- Declare some global var and functions -----
-# -------------------------------------------------
+# Read configuration from config.ini file.
+def readConfig(name_requested=False):
 
+    # Check if config file is given as argument, otherwise use default
+    parser = argparse.ArgumentParser(description=f"Object Recognition and Versatile Exploration Robot")
+    parser.add_argument("--config", default="config.ini"
+                       ,help="Path to configuration file (default: config.ini)")  
+    args = parser.parse_args()
 
-configfile_name = 'config.ini' # Where to find the global configuration
-config = None   # No config retrieved yet
-KNOWN_FIELDS = ["id","ts","src","me","pid","host","prio","reason","body"]
+    # Check if config file exists, otherwise exit with error
+    if not os.path.isfile(args.config):
+        sys.exit(f"Configuration file {args.config} does not exist")
 
-def all_fields_present(cls,message):
-    """ Check if all fields are present. Message should contain KNOWN_FIELDS
-            "id"  : UUID
-           ,"ts"    : datetime of message in '%Y-%m-%dT%H:%M:%S.%f' format
-           ,"src"   : message source, e.g. specific sensor or actuator, should be in class origin
-           ,"me"    : sending script name
-           ,"pid"   : sending pid of script
-           ,"host"  : sending node
-           ,"prio"  : priority of message, should be in class priority
-           ,"reason": type of message, should be in class origin, state, event, origin, actuator, controller, priority, cmd
-           ,"body"  : contains parameters depending on type of message
-    """
-    afp = True
-    for s in KNOWN_FIELDS:
-        if not s in message:
-           afp = False
-           break
-    return afp
-
-# def readConfig():
-#     """ Read configuration from config.ini file.
-#     Returns:
-#         ConfigParser object with configuration data.
-#     Raises:
-#         SystemExit: if the configuration file does not exist.   
-#     """
-#     if not os.path.isfile(configfile_name):
-#         sys.exit("Configuration file does not exist")
-
-#     config = configparser.ConfigParser() 
-#     config.read(configfile_name)
-#     return config
-
-
-
-
-# def connect_to_server():
-#     """Connect to BOSS server via ZMQ
-#     Args:
-#         None
-
-#     Returns:
-#         ZMQ socket or None when socket connect was not succesfull
-
-#     Raises:
-#         sys.exit on errors
-#     """
-#     config = readConfig()
-#     try:
-#         context = zmq.Context()
-#         context.setsockopt(zmq.SNDTIMEO,config.getint('boss','send_timeout',fallback=2500))
-#         context.setsockopt(zmq.RCVTIMEO,config.getint('boss','receive_timeout',fallback=2500))
-#     except Exception as e: 
-#         sys.exit(f"Could not create ZMQ context. Exception {e}" )
+    # Read configuration from config.ini file
+    config = configparser.ConfigParser() 
+    config.read(args.config)
     
-#     try:
-#         socket = context.socket(zmq.REQ)
-#         socket.connect(config.get('boss','client_socket'))
-#     except Exception as e: 
-#         sys.exit(f"Could not connect to BOSS. Exception {e}" )
-
-#     return socket
+    if name_requested:
+        return config, args.config
+    else:
+        return config
 
 
-#def disconnect_from_server(socket):
-##    """Disconnects client from the boss server
-#    Args:
-#        socket:  zmq socket connected to the BOSS
-#    Returns:
-#        nothing
-#    """
-#    socket.close()
 
 
-# def send(socket,src,reason,body={},prio=None):
-#     """Send a message to the BOSS via the provided socket.
-#     Args:
-#         socket:  zmq socket connected to the BOSS
-#         src:     who is sending the the message
-#         me       script file where the message originates from
-#         reason   type of the message
-#         body     optional parameteres depending on reason
-#         prio (optional): priority level of the message
-
-#     Returns:
-#         The response received from the BOSS.
-#             False            if the data is invalid, no action taken, 
-#             True             if the message was sent successfully
-#     Raises:
-#         None    
-#     """
-#     if not isinstance (src,(origin, actuator, controller)):
-#         print (f"Invalid 'src' field, must be known enum ({src})")
-#         return False
+# Returns the name of the current module, based on the filename of the script, or the name defined in the config file if it matches the current script name. This allows for more flexible naming of processes in the config file
+def getmodulename(config):
     
-#     if not isinstance(reason, (cmd, state, event)):
-#         print (f"Invalid 'reason' field must be known enum ({reason})")
-#         return False
+    if sys.argv[0] in config.items('scripts'):
+        # find item in config that matches the current script name and return the key (name) of that item
+        for name, path in config.items('scripts'):
+            if sys.argv[0] == os.path.basename(path):
+                return name
+        return "default"  # default name if not found in config
+    return sys.argv[0].split('.')[0]
 
-#     # check if body is valid json
-#     body_field = body
-#     if isinstance(body, str):
-#         try:
-#             body_field = json.loads(body)
-#         except (json.JSONDecodeError, ValueError):
-#             print (f"{body} is not valid JSON")
-#             return False
 
-#     # priority: accept an int or Priority member
+# Set up logging to send log messages to the boss process via a socket handler
+def setlogger(config):
+    rootLogger = logging.getLogger()
+    rootLogger.setLevel(logging.DEBUG)
+    socketHandler = logging.handlers.SocketHandler('localhost',
+                     logging.handlers.DEFAULT_TCP_LOGGING_PORT)
+    rootLogger.addHandler(socketHandler)
+    logger = logging.getLogger(getmodulename(config))
+
+    loglevel = config.get('orover','loglevel',fallback="UNKNOWN").upper()
+    known_level = (loglevel in ["DEBUG","INFO","WARNING","ERROR","CRITICAL"])
+    if not known_level:
+        logger.setLevel("ERROR")
+        logger.error((f"Invalid log level {loglevel} in config, defaulting to 'ERROR'"))
+    else:
+        logger.setLevel(loglevel.upper())
     
-#     if prio is None:
-#         prio = priority.normal
-#     if not isinstance(prio,priority):
-#         print (f"Invalid 'prio' field must be known enum ({prio})")
-#         return False    
+    return logger
 
-#     # Construct the message to send to the boss
-#     msg = {"id"  : str(uuid.uuid4())
-#           ,"ts"  : datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
-#           ,"src" : src
-#           ,"me"  : sys.argv[0]
-#           ,"pid" : os.getpid()
-#           ,"host": os.uname().nodename
-#           ,"prio": prio
-#           ,"reason": reason
-#           ,"body": body_field
-#           } 
 
-#     socket.send_json(msg)
-#     try:
-#         answer = socket.recv()
-#     except Exception as e: 
-#         print(f"Receiving ZMQ anwer failed with exception {e}") 
-#         return False
-
-#     return answer
-    
 
 # -----------------------------------------
 # --- Robot Language Definitions ---
 # -----------------------------------------
-
 
 @unique
 class priority(IntEnum):
@@ -223,15 +130,8 @@ class origin(IntEnum):
     sensor_collision_front             = 1080   
     sensor_collision_rear              = 1081
     sensor_collision_top               = 1082
+    test_message                       = 1090 
     
-
-    @classmethod
-    def find_by_name(cls, name: str) -> int | None:
-        try:
-            return origin[name]
-        except KeyError:
-            return None
-
 @unique
 class actuator(IntEnum):
     motor_wheels                       = 2000
@@ -251,7 +151,6 @@ class controller(IntEnum):
 
 @unique
 class cmd(IntEnum):
-    """Robot command, state, and event enumeration class (grouped Enums)."""
     start                              = 4000
     stop                               = 4001
     pause                              = 4002
@@ -344,11 +243,4 @@ class event(IntEnum):
     remoteCommand                      = 6401
     heartbeat                          = 6402
     configChanged                      = 6403
-
-    #all_commands = {m.value: m for grp in (cmd.system, cmd.motion, cmd.actuator, cmd.sensor, cmd.config) for m in grp}
-    #all_states   = {m.value: m for grp in (state.system, state.motion, state.power, state.actuator, state.sensor) for m in grp}
-    #all_events   = {m.value: m for grp in (event.safety, event.system, event.task, event.detected, event.external) for m in grp}
-    #all_tells    = {**all_commands, **all_states, **all_events}
-
-
- 
+    test_message                       = 6499

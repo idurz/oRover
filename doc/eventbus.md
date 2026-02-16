@@ -19,8 +19,8 @@ Each message send to and passed from the bridge will have the same format. Use t
 msg = {"id"  : 'guid'
       ,"ts"  : 'datetime' datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
       ,"src" : 'src'
-      ,"me"  : 'me'  sys.argv[0]
-      ,"host": 'hostname'  os.uname().nodename
+      ,"me"  : 'me' 
+      ,"host": 'hostname'  
       ,"prio": 'prio'
       ,"reason": 'reason'
       ,"body":  {}
@@ -38,11 +38,62 @@ msg = {"id"  : 'guid'
 | src       | Mandatory | Tells the system who is sending the message. Use the [enumeration](enumeration format from the **origin or controller ** list. Example `orover.controller.remote_interface` |
 | reason    | Mandatory | Tells the system what the reason is for sending the message. What happened, or what is your demmand? Use the [enumeration](enumeration format from the **cmd, state or event** list. Example `orover.cmd.moveTo` |
 
+## Eventbus working
 
-## Publishing messages
+The Pub/Sub pattern is great for multiple subscribers and a single publisher, but if you need multiple publishers then the XPub/XSub pattern will be of interest. We need XPUB and XSUB sockets because ZeroMQ does subscription forwarding from subscribers to publishers. XSUB and XPUB are exactly like SUB and PUB except they expose subscriptions as special messages. The proxy has to forward these subscription messages from subscriber side to publisher side, by reading them from the XSUB socket and writing them to the XPUB socket. This is the main use case for XSUB and XPUB.
 
-how to
+It can be seen that the PublisherSocket connnects to the XSubscriberSocket address. The intermediary is responsible for relaying the messages bidirectionally between the XPublisherSocket and the XSubscriberSocket. NetMQ provides a Proxy class which makes this simple. It can be seen that the SubscriberSocket connects to the XPublisherSocket address.
 
-## Subscribing to messages
+This results in the following example code:
 
-how to
+```
+# Create context
+ctx = zmq.Context()
+
+# Bind to subscriber port
+xsub = ctx.socket(zmq.XSUB)
+xsub.bind("tcp://*:5556")
+
+# Reuse context and bind to publissher port
+xpub = ctx.socket(zmq.XPUB)
+xpub.bind("tcp://*:5555")
+
+# Some info
+print("Event bus running:")
+print("  publishers -> tcp://*:5556")
+print("  subscribers -> tcp://*:5555")
+
+# Start the proxy class to forward messages
+zmq.proxy(xsub, xpub)
+```
+
+## Client publishing messages
+
+You can use the following example code for a client who wants to send messages. A message consists of a topic word, a space, and other text.
+
+
+```
+ctx = zmq.Context()
+pub = ctx.socket(zmq.PUB)
+pub.bind("tcp://*:5555")
+
+# important: allow 1 second sleep to settle for publisher
+time.sleep(1)
+a = "topic string"
+pub.send_string(a)
+```
+
+## Client subscribing to messages
+
+You can use the following example code for a client receiving messsages. A message consists of a topic word, a space and other text.
+
+```
+ctx = zmq.Context()
+sock = ctx.socket(zmq.SUB)
+sock.connect("tcp://localhost:5555")
+sock.setsockopt_string(zmq.SUBSCRIBE, "")
+
+while True:
+    msg = sock.recv_string()
+    print(f"DEBUG receiver: {msg}")
+```

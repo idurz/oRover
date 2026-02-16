@@ -32,6 +32,7 @@ Script parameters in the vorm `--param=myparam` can be added if your script hand
 
 **Mandatory scripts are**
 ```
+logserver.py
 eventbus.py
 boss.py
 ugv.py

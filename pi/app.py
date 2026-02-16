@@ -8,7 +8,7 @@ import math
 import csv
 import json
 import zmq # pyright: ignore[reportMissingImports]
-import orover_lib as orover
+import pi.oroverlib as orover
 
 # Check if configparser is installed
 import configparser

@@ -1,0 +1,5 @@
+2026-02-15 23:01:28,637 - root - INFO - Starting process logserver with command: python3 logserver.py --config=config.ini
+2026-02-15 23:01:28,641 - root - INFO - Starting process eventbus with command: python3 eventbus.py --config=config.ini
+2026-02-15 23:01:28,642 - root - INFO - Starting process boss with command: python3 boss.py --config=config.ini
+2026-02-15 23:01:28,642 - root - INFO - Starting process hcsr04 with command: python3 hcsr04.py --config=config.ini
+2026-02-15 23:01:28,643 - root - INFO - Laucher with PID 93739 started 4 processes, waiting for termination signal

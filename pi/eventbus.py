@@ -5,22 +5,17 @@
      License      MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
      Description  zmq event bus for oRover processes to publish events to each other and the BOSS
 """
+import sys
 import zmq
+import oroverlib as orover
+import setproctitle
+import os
 
-# from base_process import BaseProcess
+#### Main execution starts here ####
 
-# class Eventbus(BaseProcess):
-#     def loop(self):
-#         while True:
-#             msg = self.sub.recv_json()
-#             print(f"Eventbus message received {msg}")
-#             self.logger.info("Eventbus message received", extra = {"message" : msg})
-#             self.pub.send_json(msg)
-
-# if __name__ == "__main__":
-#     p = Eventbus()
-#     p.loop()
-
+config = orover.readConfig()
+logger = orover.setlogger(config)
+setproctitle.setproctitle(f"orover:{orover.getmodulename(config)}")
 
 ctx = zmq.Context()
 xsub = ctx.socket(zmq.XSUB)
@@ -29,8 +24,8 @@ xsub.bind("tcp://*:5556")
 xpub = ctx.socket(zmq.XPUB)
 xpub.bind("tcp://*:5555")
 
-print("Event bus running:")
-print("  publishers -> tcp://*:5556")
-print("  subscribers -> tcp://*:5555")
+logger.info(f"{orover.getmodulename(config)} started with PID {os.getpid()}")
+#print("  publishers -> tcp://*:5556")
+#print("  subscribers -> tcp://*:5555")
 
 zmq.proxy(xsub, xpub)
