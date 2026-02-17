@@ -244,3 +244,225 @@ class event(IntEnum):
     heartbeat                          = 6402
     configChanged                      = 6403
     test_message                       = 6499
+
+
+# -----------------------------------------
+# --- Message handler dummy functions   ---
+# -----------------------------------------
+
+class handler:
+    """Handler dummy functions for processing incoming messages in the BOSS and UGV servers. 
+       Actual functions should be implemented in the respective server classes to perform the appropriate 
+       actions based on the message content, such as controlling actuators, updating system state, or triggering events. 
+       Each function takes a message as input and performs the appropriate actions based on the message content. 
+    """
+
+    # Command handlers
+    def cmd_start(message):
+        pass
+
+    def cmd_stop(message):
+        pass
+
+    def cmd_pause(message):
+        pass
+
+    def cmd_resume(message):
+        pass
+
+    def cmd_shutdown(message):
+        pass
+    
+    def cmd_reboot(message):
+        pass
+
+    def cmd_reset(message):
+        pass
+
+    def cmd_move(message):
+        pass
+
+    def cmd_moveTo(message):
+        pass
+
+    def cmd_rotate(message):
+        pass
+
+    def cmd_setVelocity(message):
+        pass
+
+    def cmd_stopMotion(message):
+        pass
+
+    def cmd_dock(message):
+        pass
+
+    def cmd_undock(message):
+        pass
+
+    def cmd_set_motor_speed(message):
+        pass
+
+    def cmd_setPosition(message):
+        pass
+
+    def cmd_setSpeed(message):
+        pass
+
+    def cmd_setTorque(message):
+        pass
+
+    def cmd_open(message):
+        pass
+
+    def cmd_close(message):
+        pass
+
+    def cmd_enable(message):
+        pass
+
+    def cmd_disable(message):
+        pass
+
+    def cmd_calibratesensor(message):
+        pass
+
+    def cmd_startStream(message):
+        pass
+
+    def cmd_stopStream(message):
+        pass
+
+    def cmd_setRate(message):
+        pass
+
+    def cmd_setRange(message):
+        pass
+
+    def cmd_getParam(message):
+        pass
+
+    def cmd_setParam(message):
+        pass
+
+    def cmd_loadProfile(message):
+        pass
+
+    def cmd_saveProfile(message):
+        pass     
+
+    # Event handlers   
+    def event_object_detected(message):
+        pass
+        
+    def event_emergencyStop(message):
+        pass
+
+    def event_collisionDetected(message):
+        pass
+
+    def event_obstacleDetected(message):
+        pass
+
+    def event_overcurrent(message):
+        pass
+
+    def event_overtemperature(message):
+        pass
+
+    def event_lowBattery(message):
+        pass   
+
+    def event_startupComplete(message):
+        pass
+
+    def event_shutdownInitiated(message):
+        pass
+
+    def event_modeChanged(message):
+        pass
+
+    def event_faultRaised(message):
+        pass
+
+    def event_faultCleared(message):
+        pass
+
+    def event_goalReached(message):
+        pass
+
+    def event_goalFailed(message):
+        pass
+
+    def event_docked(message):
+        pass
+
+    def event_undocked(message):
+        pass
+
+    def event_pathBlocked(message):
+        pass
+
+    def event_marker_detected(message):
+        pass
+
+    def event_human_detected(message):
+        pass
+
+    def event_lineLost_detected(message):
+        pass
+
+    def event_manualOverride(message):
+        pass
+
+    def event_remoteCommand(message):
+        pass
+
+    def event_heartbeat(message):
+        pass
+
+    def event_configChanged(message):
+        pass
+
+    def event_test_message(message):
+        pass     
+
+    
+
+# -------------------------------------------------
+# --- DISPATCH info for the specific services   ---
+# -------------------------------------------------
+DISPATCH = {event.object_detected:                    handler.event_object_detected
+           ,event.emergencyStop:                      handler.event_emergencyStop
+           ,event.collisionDetected:                  handler.event_collisionDetected
+           ,event.obstacleDetected:                   handler.event_obstacleDetected
+           ,event.overcurrent:                        handler.event_overcurrent
+           ,event.overtemperature:                    handler.event_overtemperature
+           ,event.lowBattery:                         handler.event_lowBattery
+
+           ,event.startupComplete:                    handler.event_startupComplete
+           ,event.shutdownInitiated:                  handler.event_shutdownInitiated
+           ,event.modeChanged:                        handler.event_modeChanged
+           ,event.faultRaised:                        handler.event_faultRaised
+           ,event.faultCleared:                       handler.event_faultCleared
+
+           ,event.goalReached:                        handler.event_goalReached
+           ,event.goalFailed:                         handler.event_goalFailed
+           ,event.docked:                             handler.event_docked
+           ,event.undocked:                           handler.event_undocked
+
+           ,event.object_detected:                    handler.event_object_detected
+           ,event.pathBlocked:                        handler.event_pathBlocked
+           ,event.marker_detected:                    handler.event_marker_detected
+           ,event.human_detected:                     handler.event_human_detected
+           ,event.lineLost_detected:                  handler.event_lineLost_detected
+
+           ,event.manualOverride:                     handler.event_manualOverride
+           ,event.remoteCommand:                      handler.event_remoteCommand
+           ,event.heartbeat:                          handler.event_heartbeat
+           ,event.configChanged:                      handler.event_configChanged
+           ,event.test_message:                       handler.event_test_message
+
+           ,cmd.shutdown:                             handler.cmd_shutdown
+           ,cmd.set_motor_speed:                      handler.cmd_set_motor_speed
+           }

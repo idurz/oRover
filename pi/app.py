@@ -1,31 +1,32 @@
 from flask import Flask, render_template, jsonify, request
-from motor import *
+from pi.ugv import *
 import os
 import sys
 import time
-import argparse
 import math
 import csv
 import json
 import zmq # pyright: ignore[reportMissingImports]
-import pi.oroverlib as orover
+import oroverlib as orover
+import setproctitle
 
-# Check if configparser is installed
-import configparser
-if 'configparser' not in sys.modules:
-    sys.exit("'configparser' is required but not found. See README")    
 
-# Declare some globals
-configfile_name = '../cfg/config.ini' # Where to find the global configuration
-config = None       # No config retrieved yet
-msg = ''            # Nothing to tell yet
-#socket = None # global socket
+# read config and setup logging
+config = orover.readConfig()
+logger = orover.setlogger(config)
+setproctitle.setproctitle(f"orover:{orover.getmodulename(config)}")
 
+# setup flask app
+app = Flask(orover.getmodulename(config)
+           ,static_folder   = config.get("static_folder",   fallback="static")
+           ,template_folder = config.get("template_folder", fallback="template")
+          )
+
+# globals
 commands = []
 
-global socket
-# open zmg
-socket = orover.connect_to_server()
+
+
 
 
 def rx_commands():
@@ -51,50 +52,15 @@ def rx_commands():
 
     print("Done.")
 
-app = Flask(__name__)
-
-# Example runtime state (in real use, replace with sensor reads / hardware control)
-state = {
-    "temperature": 22.5,
-    "speed": 0.0,
-    "angle": 0.0,
-    "voltage": 12.6
-}
-###########################################################################
-def readConfig(configfile_name):
-    # Read all info from config.ini
-
-    if not os.path.isfile(configfile_name):
-        sys.exit("Configuration file does not exist")
-
-    config = configparser.ConfigParser() 
-    config.read(configfile_name)
-    return config
-
-###########################################################################
-# Init Main Program
-###########################################################################
-config  = readConfig(configfile_name)
 
 ###########################################################################
 # Web server
 ###########################################################################
-if 'app' not in config:
-    config.add_section('app')
-appConfig = config['app']
-
-app = Flask(appConfig.get('name','oRover'), 
-            static_folder   = appConfig.get('static_folder','static'), 
-            template_folder = appConfig.get('template_folder','template')
-           )
-
-app.config.update(
-   DEBUG        = appConfig.getboolean('debug',True)
-  )
 
 @app.route("/")
 def index():
     return render_template("index.html")
+
 
 @app.route("/control", methods=["POST"])
 def control():
@@ -132,10 +98,11 @@ def control():
     return jsonify({"status": "unknown action"}), 400
 
     # Example: small temp/voltage drift to show changes
-    state["temperature"] += 0.01
-    state["voltage"] -= 0.001
+    #state["temperature"] += 0.01
+    #state["voltage"] -= 0.001
 
-    return jsonify({"status": "ok", "action": action, "state": state})
+    #return jsonify({"status": "ok", "action": action, "state": state})
+
 
 @app.route("/status")
 def status():
@@ -146,6 +113,7 @@ def status():
         "angle": round(state["angle"], 2),
         "voltage": round(state["voltage"], 2)
     })
+
 
 @app.route("/readroute", methods=["POST"])
 def readroute():
@@ -180,5 +148,12 @@ def route():
 
     return jsonify(status="route accepted", steps=len(route))
 
+
+
+#### Main execution starts here ####
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0')
+
+    # run flask app
+    app.run(debug=config.getboolean('debug',fallback=True)
+           ,host=config.get("host",   fallback="localhost")
+           )

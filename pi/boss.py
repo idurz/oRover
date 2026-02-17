@@ -72,16 +72,11 @@ class boss_server(baseprocess):
     # override baseprocess methodes
     def handle_message(self, message):
 
-        DISPATCH = {orover.event.object_detected:        handler.event_object_detected
-               ,orover.cmd.shutdown:                     handler.cmd_shutdown
-               ,orover.cmd.set_motor_speed:              handler.cmd_set_motor_speed
-               }
-
         reason = message['reason']
         try:
-            handler_routine = DISPATCH[reason]
+            handler_routine = orover.DISPATCH[reason]
         except KeyError:
-            p.logger.warning(f"Message discard: {message['id']}: No handler for reason {self.enum_to_name(reason)} available in BOSS server") 
+            p.logger.debug(f"Message discarded: {message['id']}: No handler for reason {self.enum_to_name(reason)} available in BOSS server") 
             return
        
         result = handler_routine(message)

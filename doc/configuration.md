@@ -70,9 +70,10 @@ print(f"Please go to {next_event_type}")
 | name              | default value    | description |
 |-------------------|------------------|-------------|
 | name              | orover           | Flask app name used when constructing the (Flask)[https://flask.palletsprojects.com/en/stable/] web app |
-| static_folder     | ./static         | override Flask's static (e.g. pictures etc) directories |
-| template_folder   | ./template       | override Flask's template (e.g. html, js) directories |
-| debug             | False            | boolean for Flask debug mode |
+| static_folder     | ./static         | Override Flask's static (e.g. pictures etc) directories |
+| template_folder   | ./template       | Override Flask's template (e.g. html, js) directories |
+| debug             | False            | Boolean for Flask debug mode |
+| host              | localhost        | Controls what address the development server listens to |
 
 ### Section [scripts]
 | name              | default value    | description |

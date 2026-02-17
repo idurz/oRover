@@ -28,25 +28,6 @@ class baseprocess:
         self.logger = orover.setlogger(self.config)
         setproctitle.setproctitle(f"orover:{orover.getmodulename(self.config)}")
 
-        # Set up logging to send log messages to the boss process via a socket handler
-        #loglevel = self.config.get('orover','loglevel',fallback="error")
-        #if loglevel not in ["debug","info","warning","error","critical"]:
-        #    print(f"Invalid log level {loglevel} in config, defaulting to 'error'")
-        #    loglevel = "error"
-        #rootLogger = logging.getLogger()
-        #rootLogger.setLevel(logging.DEBUG)
-        #socketHandler = logging.handlers.SocketHandler('localhost'
-        #                                              ,logging.handlers.DEFAULT_TCP_LOGGING_PORT)
-        # don't bother with a formatter, since a socket handler sends the event unformatted
-        #r#ootLogger.addHandler(socketHandler)
-        #self.logger = logging.getLogger(self.myname)
-        #self.logger.setLevel(loglevel.upper())
-
-        #logger.debug('Quick zephyrs blow, vexing daft Jim.')
-        #logger.info('How quickly daft jumping zebras vex.')
-        #logger.warning('Jail zesty vixen who grabbed pay from quack.')
-        #logger.error('The five boxing wizards jump quickly.')
-
         # Create ZMQ context and sockets for communication with the boss process and event bus
         self.ctx = zmq.Context()
 
