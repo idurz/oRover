@@ -6,16 +6,20 @@
      Description  This script initializes and starts all configured processes
 """
 
-import logging,logging.handlers
+import logging
 import os
 import sys
 import subprocess
 import signal
 import time
 import oroverlib as orover
-import setproctitle
+from base_process import baseprocess
+
 
 started_processes = []
+
+class base(baseprocess):
+    pass
 
 # Signal handler for graceful shutdown of myself and child processes
 def stop_processes(signalNumber, frame):
@@ -30,26 +34,40 @@ def stop_processes(signalNumber, frame):
 
 # TERMINATION MESSAGES APPEAR IN LOG; START MESSAGES DONT
 
+# Check if all commands and events are defined in the DISPATCH dictionary of the servers
+def startup_checks(config):
+    mising_dict = False
+    for c in list(orover.cmd) + list(orover.event):
+         if not c in orover.DISPATCH:
+            msg = f"{c.name} Not defined in DISPATCH dictionary '{c.__class__.__name__}' of the servers"
+            b.logging.error(msg)
+            print(msg)  
+            mising_dict = True
+
+    if mising_dict:
+        logging.error("Startup checks for DISPATCH dictionary failed, exiting") 
+        sys.exit("Startup checks for DISPATCH dictionary failed, exiting")
+        
+    return
+
 
 #### Main execution starts here ####
-config, configfile = orover.readConfig(True)
-logger = orover.setlogger(config)
-
-setproctitle.setproctitle(f"orover:{orover.getmodulename(config)}")
+b = base()  
+startup_checks(b.config) # Do some startup checks for orover lib
 
 # Get python path from config file, default to "python3" if not defined
-if config.has_option("orover", "python_exec"):
-    python_path = config.get("orover", "python_exec", fallback="python3")
+if b.config.has_option("orover", "python_exec"):
+    python_path = b.config.get("orover", "python_exec", fallback="python3")
 else:
     logging.warning(f"Python path is not defined in config file, defaulting to 'python3'") 
     python_path = "python3"
 
 # Check if scipts section is defined in config file
-if not config.has_section('scripts'):
+if not b.config.has_section('scripts'):
     sys.exit(f"config does not have a section [scripts] with defined processes")
 
 # Are there any processes defined in the config file?
-defined_processes = config.items('scripts')
+defined_processes = b.config.items('scripts')
 if len(defined_processes) == 0:
     sys.exit(f"config does not have any processes defined in the [scripts] section")
 
@@ -62,7 +80,7 @@ for p in defined_processes:
         logging.warning(f"Process {p[0]} is defined but has no command, skipping")
         continue
 
-    execute_command = f"{python_path} {p[1]} --config={configfile}"
+    execute_command = f"{python_path} {p[1]} --config={b.configfile}"
     logging.info(f"Starting process {p[0]} with command: {execute_command}")
 
     proc = subprocess.Popen(execute_command.split())  
@@ -71,7 +89,7 @@ for p in defined_processes:
 # All starts done, register signal handler for graceful shutdown
 signal.signal(signal.SIGTERM, stop_processes)
 
-logging.info(f"Laucher with PID {os.getpid()} started {len(started_processes)} processes, waiting for termination signal")
+print(f"Laucher with PID {os.getpid()} started {len(started_processes)} processes, waiting for termination signal")
 
 # Keep the main thread alive to listen for signals
 while True:

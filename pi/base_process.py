@@ -23,26 +23,19 @@ import setproctitle
 class baseprocess:
     def __init__(self):
 
-        self.config = orover.readConfig()  # Read configuration from config.ini file
-        self.myname = orover.getmodulename(self.config)  # Get the name of the current script for use in messages
-        self.logger = orover.setlogger(self.config)
-        setproctitle.setproctitle(f"orover:{orover.getmodulename(self.config)}")
+        self.config, self.configfile = orover.readConfig(True)  # Read configuration from config.ini file
+        self.myname = self.getmodulename(self.config)  # Get the name of the current script for use in messages
+        self.logger = self.setlogger(self.config, self.myname)
+        setproctitle.setproctitle(f"orover:{self.myname}")
 
-        # Create ZMQ context and sockets for communication with the boss process and event bus
-        self.ctx = zmq.Context()
+        self.ctx = zmq.Context() # Create ZMQ context
+        self.pub = self.create_pub_socket(self.ctx) # Create zmq PUB socket for event bus, connect to port
+        self.sub = self.create_sub_socket(self.ctx) # Create zmq SUB socket for event bus, bind to port
 
-        # Create zmq PUB socket for event bus, connect to port
-        self.pub = self.ctx.socket(zmq.PUB)
-        self.pub.connect(self.config.get("eventbus","client_pub_socket",fallback="tcp://localhost:5556"))
-    
-        # Create zmq SUB socket for event bus, bind to port
-        self.sub = self.ctx.socket(zmq.SUB)
-        self.sub.connect(self.config.get("eventbus","client_sub_socket",fallback="tcp://localhost:5555"))
-        self.sub.setsockopt_string(zmq.SUBSCRIBE, "")
-        
         # Start done, register signal handler for graceful shutdown and log the start of the process
         signal.signal(signal.SIGTERM, self.terminate)
         self.running = True
+
         self.logger.info(f"{self.myname} started with PID {os.getpid()}")
 
         # is heart_beat_interval configured? If so, start the heartbeat thread
@@ -54,6 +47,50 @@ class baseprocess:
 
 
 
+    # Returns the name of the current module, based on the filename of the script, or the name defined in the config file if it matches the current script name. This allows for more flexible naming of processes in the config file
+    def getmodulename(self, config):
+        if sys.argv[0] in config.items('scripts'): # sys.argv[0] contains the name of the currently running script, no path and with ".py" extension.
+            print(f"Found script name {sys.argv[0]} in config, using corresponding name {config.get('scripts',sys.argv[0])} for logging")
+            for name, path in config.items('scripts'): # find item in config that matches the current script name and return the key (name) of that item
+                if sys.argv[0] == os.path.basename(path):
+                    return name
+            return "default"  # default name if not found in config
+        return sys.argv[0].split('.')[0]
+
+
+
+    # Set up logging to send log messages to the boss process via a socket handler
+    def setlogger(self,config,myname):
+        rootLogger = logging.getLogger()
+        rootLogger.setLevel(logging.DEBUG)
+        socketHandler = logging.handlers.SocketHandler('localhost',
+                     logging.handlers.DEFAULT_TCP_LOGGING_PORT)
+        rootLogger.addHandler(socketHandler)
+        logger = logging.getLogger(myname)
+
+        loglevel = config.get('orover','loglevel',fallback="UNKNOWN").upper()
+        known_level = (loglevel in ["DEBUG","INFO","WARNING","ERROR","CRITICAL"])
+        if not known_level:
+            logger.setLevel("ERROR")
+            logger.error((f"Invalid log level {loglevel} in config, defaulting to 'ERROR'"))
+        else:
+            logger.setLevel(loglevel.upper())
+    
+        return logger
+ 
+
+
+    def create_pub_socket(self, ctx):
+        pub = ctx.socket(zmq.PUB)
+        pub.connect(self.config.get("eventbus","client_pub_socket",fallback="tcp://localhost:5556"))
+        return pub
+
+    def create_sub_socket(self, ctx):
+        sub = ctx.socket(zmq.SUB)
+        sub.connect(self.config.get("eventbus","client_sub_socket",fallback="tcp://localhost:5555"))
+        sub.setsockopt_string(zmq.SUBSCRIBE, "")
+        return sub
+        
 
     # Return the best-effort name for a numeric type.
     def enum_to_name(self, val) -> str:
@@ -80,8 +117,6 @@ class baseprocess:
         return None
 
 
-
-
     # Signal handler for graceful shutdown of myself and child processes
     def terminate(self,signalNumber, frame):
         self.pub.close()
@@ -91,21 +126,22 @@ class baseprocess:
         sys.exit()
 
 
-
-
     # json encode the message and prepend the topic
-    #def mogrify(self, topic, msg):
-    #    return topic + ' ' + json.dumps(msg)
+    def mogrify(self, topic, msg):
+        return topic + ' ' + json.dumps(msg)
+
 
     # Return the topic and JSON decoded message from the topic+message string received from the bus
     def demogrify(self, topicmsg):
-        json0 = topicmsg.find('{')
-        topic = topicmsg[0:json0].strip()
-        msg = json.loads(topicmsg[json0:])
-        return topic, msg
+        # Find first occurrence of '{' to separate topic and message, then JSON decode the message part
+        try:
+            topic, msgtxt = topicmsg.split(' ', 1)
+        except ValueError:
+            self.logger.error(f"Received malformed message: >>{topicmsg}<<, unable to split topic and message")
+            return None, None
+        
+        return topic, json.loads(msgtxt)
     
-
-
 
     # Publish an event to the bus, with validation of fields and JSON body
     def send_event(self, src, reason,body={}, prio=None):
@@ -148,7 +184,7 @@ class baseprocess:
               } 
 
         # create the topic string and JSON encode the message, then send to the bus
-        msgstring = self.enum_to_name(reason) + ' ' + json.dumps(msg)
+        msgstring = self.mogrify(self.enum_to_name(reason), msg)
         self.logger.debug(f"Sending event {json.dumps(msg)}")
 
         try:
@@ -158,8 +194,6 @@ class baseprocess:
             return False
 
         return True
-
-
 
 
     # Heartbeat loop, sending a heartbeat event at the configured interval
@@ -187,8 +221,6 @@ class baseprocess:
             if not afp:
                 break
             return afp
-        
-
 
 
     # test method to validate uuid
@@ -200,8 +232,6 @@ class baseprocess:
         return True
 
 
-
-
     # test method to validate datetime
     def valid_datetime(self, ts):
         try:
@@ -211,20 +241,14 @@ class baseprocess:
         return True
 
 
-
-
     # test method to validate source
     def valid_source(self, src):
         return src in orover.controller, orover.origin
    
 
-
-
     # test method to validate priority
     def valid_priority(self,prio):
         return prio in orover.priority
-
-
 
 
     # Check if the message has the required fields and valid values, return True if valid, False otherwise
@@ -249,13 +273,9 @@ class baseprocess:
         return True
 
 
-
-
     # Override this method in child classes to handle incoming messages from the bus
     def handle_message(self, msg):
         pass
-
-
 
 
     # Main loop to receive messages from the bus and handle them, runs until termination signal is received

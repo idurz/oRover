@@ -9,37 +9,39 @@
 
 import os
 import sys
-import RPI.GPIO as GPIO
+import RPi.GPIO as GPIO
 import time
-import signal
-import logging, logging.handlers
-import oroverlib as orover
-import setproctitle
+from base_process import baseprocess
 
-# Signal handler for graceful shutdown of myself and child processes
-def terminate(signalNumber, frame):
-    GPIO.cleanup()
-    sys.exit()
+class base(baseprocess):
+
+    def terminate(self,signalNumber, frame):
+        self.pub.close()
+        self.sub.close()
+        self.ctx.term()
+        self.running = False
+        GPIO.cleanup()
+        sys.exit()
+
+    # Main loop 
+    def run(self):
+        while self.running:
+            if GPIO.input(pin_number) == 0: #0==Low, if it detects cable is pulled
+                time.sleep(sleep_time)
+                if GPIO.input(pin_number) == 0: 
+                    self.logger.critical("Power loss detected, initiating shutdown...")
+                    os.system("sudo shutdown -h --no-wall now") 
+            time.sleep(1)
 
 
 #### Main execution starts here ####
 
-config = orover.readConfig()
-logger = orover.setlogger(config)
-setproctitle.setproctitle(f"orover:{orover.getmodulename(config)}")
+b =base() # Create an instance of the base class to get config and logger
 
-pin_number = config.getint("powercontrol","pin",fallback=4) #GPIO pin number to monitor, default is GPIO 4
-sleep_time = config.getfloat("powercontrol","sleep_time",fallback=  2.0) #Seconds to wait before shutdown after detecting power loss
+pin_number = b.config.getint("powercontrol","pin",fallback=4) #GPIO pin number to monitor, default is GPIO 4
+sleep_time = b.config.getfloat("powercontrol","sleep_time",fallback=  2.0) #Seconds to wait before shutdown after detecting power loss
 
 GPIO.setmode(GPIO.BCM) #Uses BCM pin numbering
 GPIO.setup(pin_number, GPIO.IN)
 
-# Start done, register signal handler for graceful shutdown
-signal.signal(signal.SIGTERM, terminate)
-
-while True:
-    if GPIO.input(pin_number) == 0: #0==Low, if it detects cable is pulled
-        time.sleep(sleep_time)
-        if GPIO.input(pin_number) == 0: 
-            os.system("sudo shutdown -h now") 
-    time.sleep(1)
+b.run()

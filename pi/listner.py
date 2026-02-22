@@ -7,4 +7,4 @@ sock.setsockopt_string(zmq.SUBSCRIBE, "")
 
 while True:
     msg = sock.recv_string()
-    print(f"DEBUG receiver: {msg}")
+    print(f"LISTNER: {msg}")

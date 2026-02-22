@@ -38,39 +38,6 @@ def readConfig(name_requested=False):
 
 
 
-# Returns the name of the current module, based on the filename of the script, or the name defined in the config file if it matches the current script name. This allows for more flexible naming of processes in the config file
-def getmodulename(config):
-    
-    if sys.argv[0] in config.items('scripts'):
-        # find item in config that matches the current script name and return the key (name) of that item
-        for name, path in config.items('scripts'):
-            if sys.argv[0] == os.path.basename(path):
-                return name
-        return "default"  # default name if not found in config
-    return sys.argv[0].split('.')[0]
-
-
-# Set up logging to send log messages to the boss process via a socket handler
-def setlogger(config):
-    rootLogger = logging.getLogger()
-    rootLogger.setLevel(logging.DEBUG)
-    socketHandler = logging.handlers.SocketHandler('localhost',
-                     logging.handlers.DEFAULT_TCP_LOGGING_PORT)
-    rootLogger.addHandler(socketHandler)
-    logger = logging.getLogger(getmodulename(config))
-
-    loglevel = config.get('orover','loglevel',fallback="UNKNOWN").upper()
-    known_level = (loglevel in ["DEBUG","INFO","WARNING","ERROR","CRITICAL"])
-    if not known_level:
-        logger.setLevel("ERROR")
-        logger.error((f"Invalid log level {loglevel} in config, defaulting to 'ERROR'"))
-    else:
-        logger.setLevel(loglevel.upper())
-    
-    return logger
-
-
-
 # -----------------------------------------
 # --- Robot Language Definitions ---
 # -----------------------------------------
@@ -463,6 +430,39 @@ DISPATCH = {event.object_detected:                    handler.event_object_detec
            ,event.configChanged:                      handler.event_configChanged
            ,event.test_message:                       handler.event_test_message
 
+           ,cmd.start:                                handler.cmd_start
+           ,cmd.stop:                                 handler.cmd_stop
+           ,cmd.pause:                                handler.cmd_pause
+           ,cmd.resume:                               handler.cmd_resume
            ,cmd.shutdown:                             handler.cmd_shutdown
+           ,cmd.reboot:                               handler.cmd_reboot
+           ,cmd.reset:                                handler.cmd_reset
+
+           ,cmd.move:                                 handler.cmd_move
+           ,cmd.moveTo:                               handler.cmd_moveTo
+           ,cmd.rotate:                               handler.cmd_rotate
+           ,cmd.setVelocity:                          handler.cmd_setVelocity
+           ,cmd.stopMotion:                           handler.cmd_stopMotion
+           ,cmd.dock:                                 handler.cmd_dock
+           ,cmd.undock:                               handler.cmd_undock
            ,cmd.set_motor_speed:                      handler.cmd_set_motor_speed
+
+           ,cmd.setPosition:                          handler.cmd_setPosition
+           ,cmd.setSpeed:                             handler.cmd_setSpeed
+           ,cmd.setTorque:                            handler.cmd_setTorque
+           ,cmd.open:                                 handler.cmd_open
+           ,cmd.close:                                handler.cmd_close
+           ,cmd.enable:                               handler.cmd_enable
+           ,cmd.disable:                              handler.cmd_disable
+
+           ,cmd.calibratesensor:                      handler.cmd_calibratesensor
+           ,cmd.startStream:                          handler.cmd_startStream
+           ,cmd.stopStream:                           handler.cmd_stopStream
+           ,cmd.setRate:                              handler.cmd_setRate
+           ,cmd.setRange:                             handler.cmd_setRange
+
+           ,cmd.getParam:                             handler.cmd_getParam
+           ,cmd.setParam:                             handler.cmd_setParam
+           ,cmd.loadProfile:                          handler.cmd_loadProfile
+           ,cmd.saveProfile:                          handler.cmd_saveProfile
            }
