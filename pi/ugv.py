@@ -114,7 +114,7 @@ class ugv_server(baseprocess):
                 if self.valid_message(msg):
                     self.handle_message(msg)
                 else:
-                    u.logger.debug(f"Message discarded: {msg['id']}: Invalid message structure or content")
+                    u.logger.debug(f"Message discarded: >>{msg}<<: Invalid message structure or content")
                     return
                 
             # Check for serial data regardless of zmq events, to ensure we don't miss any incoming data

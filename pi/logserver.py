@@ -11,8 +11,8 @@ import logging
 import logging.handlers
 import socketserver
 import struct
+import os
 import oroverlib as orover
-#import setproctitle
 from base_process import baseprocess
 
 class base(baseprocess):
@@ -22,8 +22,17 @@ class base(baseprocess):
     def create_sub_socket(self, ctx):
         return None # No sub socket needed for logserver, we only receive logs via the socket handler, we don't subscribe t
     
-    
+    # Signal handler for graceful shutdown of myself and child processes
+    def terminate(self,signalNumber, frame):
+        self.ctx.term()
+        self.running = False
+        tcpserver.abort = 1
+        os._exit(os.EX_OK) # sys.exit will not work here because of the socketserver, so we use os._exit to force exit immediately
 
+    def setlogger(self,config,myname):
+        pass # No need to set up a logger here, we will use the root logger for the logserver, and the socket handler will log to the appropriate logger based on the record name
+
+    
 # This is based on the Python 3.11 standard library example for a socket-based logging receiver.
 class LogRecordStreamHandler(socketserver.StreamRequestHandler):
 
@@ -87,7 +96,7 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 
 
 #### Main execution starts here ####
-def main():
+if __name__ == '__main__':
     b =base() # Create an instance of the base class to get config and logger
 
     config  = orover.readConfig()
@@ -101,7 +110,3 @@ def main():
 
     tcpserver = LogRecordSocketReceiver()
     tcpserver.serve_until_stopped()
-
-
-if __name__ == '__main__':
-    main()

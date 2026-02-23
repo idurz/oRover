@@ -25,6 +25,7 @@ class baseprocess:
 
         self.config, self.configfile = orover.readConfig(True)  # Read configuration from config.ini file
         self.myname = self.getmodulename(self.config)  # Get the name of the current script for use in messages
+        
         self.logger = self.setlogger(self.config, self.myname)
         setproctitle.setproctitle(f"orover:{self.myname}")
 
@@ -36,12 +37,13 @@ class baseprocess:
         signal.signal(signal.SIGTERM, self.terminate)
         self.running = True
 
-        self.logger.info(f"{self.myname} started with PID {os.getpid()}")
+        if self.logger is not None:
+            self.logger.info(f"{self.myname} started with PID {os.getpid()}")
+        print(f"{self.myname} started with PID {os.getpid()}")
 
         # is heart_beat_interval configured? If so, start the heartbeat thread
         self.heart_beart_interval = self.config.getint('orover','heartbeat_interval',fallback=0)
         if self.heart_beart_interval > 0:
-            self.logger.info(f"Starting heartbeat thread with interval {self.heart_beart_interval} seconds")
             self.hb_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
             self.hb_thread.start()
 
@@ -79,16 +81,19 @@ class baseprocess:
         return logger
  
 
-
     def create_pub_socket(self, ctx):
         pub = ctx.socket(zmq.PUB)
         pub.connect(self.config.get("eventbus","client_pub_socket",fallback="tcp://localhost:5556"))
+        if self.logger is not None:
+            self.logger.debug(f"Created PUB socket and connected to {self.config.get('eventbus','client_pub_socket',fallback='tcp://localhost:5556')}")
         return pub
 
     def create_sub_socket(self, ctx):
         sub = ctx.socket(zmq.SUB)
         sub.connect(self.config.get("eventbus","client_sub_socket",fallback="tcp://localhost:5555"))
         sub.setsockopt_string(zmq.SUBSCRIBE, "")
+        if self.logger is not None:
+            self.logger.debug(f"Created SUB socket and connected to {self.config.get('eventbus','client_sub_socket',fallback='tcp://localhost:5555')}")
         return sub
         
 
@@ -136,7 +141,7 @@ class baseprocess:
         # Find first occurrence of '{' to separate topic and message, then JSON decode the message part
         try:
             topic, msgtxt = topicmsg.split(' ', 1)
-        except ValueError:
+        except:
             self.logger.error(f"Received malformed message: >>{topicmsg}<<, unable to split topic and message")
             return None, None
         
@@ -145,14 +150,17 @@ class baseprocess:
 
     # Publish an event to the bus, with validation of fields and JSON body
     def send_event(self, src, reason,body={}, prio=None):
-        self.logger.debug(f"Preparing to send event with src {src}, reason {reason}, body {body} and prio {prio}")
+        if self.logger is not None:
+            self.logger.debug(f"Preparing to send event with src {src}, reason {reason}, body {body} and prio {prio}")
 
         if not isinstance (src,(orover.origin, orover.actuator, orover.controller)):
-            self.logger.error(f"Invalid 'src' field, must be known enum ({src})")
+            if self.logger is not None:
+                self.logger.error(f"Invalid 'src' field, must be known enum ({src})")
             return False
     
         if not isinstance(reason, (orover.cmd, orover.state, orover.event)):
-            self.logger.error(f"Invalid 'reason' field must be known enum ({reason})")
+            if self.logger is not None:
+                self.logger.error(f"Invalid 'reason' field must be known enum ({reason})")
             return False
 
         # check if body is valid json
@@ -161,14 +169,16 @@ class baseprocess:
             try:
                 body_field = json.loads(body)
             except (json.JSONDecodeError, ValueError):
-                self.logger.error(f"{body} is not valid JSON")
+                if self.logger is not None:
+                    self.logger.error(f"{body} is not valid JSON")
                 return False
 
         # priority: accept an int or Priority member
         if prio is None:
             prio = orover.priority.normal
             if not isinstance(prio,orover.priority):
-                self.logger.error(f"Invalid 'prio' field must be known enum ({prio})")
+                if self.logger is not None:
+                    self.logger.error(f"Invalid 'prio' field must be known enum ({prio})")
                 return False    
 
 
@@ -185,12 +195,14 @@ class baseprocess:
 
         # create the topic string and JSON encode the message, then send to the bus
         msgstring = self.mogrify(self.enum_to_name(reason), msg)
-        self.logger.debug(f"Sending event {json.dumps(msg)}")
+        if self.logger is not None:
+            self.logger.debug(f"Sending event {json.dumps(msg)}")
 
         try:
             self.pub.send_string(msgstring)
         except Exception as e: 
-            self.logger.error(f"Publishing ZMQ message failed with exception {e}") 
+            if self.logger is not None:
+                self.logger.error(f"Publishing ZMQ message failed with exception {e}") 
             return False
 
         return True
@@ -198,10 +210,11 @@ class baseprocess:
 
     # Heartbeat loop, sending a heartbeat event at the configured interval
     def _heartbeat_loop(self):
+        #print(f"Starting {self.myname} heartbeat loop with interval {self.heart_beart_interval} seconds: {self.running}")
         while self.running:
             self.send_event(src=orover.origin.heartbeat
                            ,reason=orover.event.heartbeat
-                           ,body={})
+                           ,body={"script": self.myname})
             time.sleep(self.heart_beart_interval)
 
 
@@ -216,6 +229,10 @@ class baseprocess:
            ,"reason": type of message, should be in class origin, state, event, origin, actuator, controller, priority, cmd
            ,"body"  : contains parameters depending on type of message
         """
+        if message is None:
+            return False
+        
+        # print(f"Validating message {message} for required fields")
         for s in ["id","ts","src","me","host","prio","reason","body"]:
             afp = (s in message)
             if not afp:
@@ -255,21 +272,27 @@ class baseprocess:
     def valid_message(self, msg):
         
         if not self.all_fields_present(msg):
-            self.logger.error(f"Discarding message {msg} --> Field missing in message")
+            if self.logger is not None:
+                self.logger.error(f"Discarding message {msg} --> Field missing in message")
             return False
         if not self.valid_uuid(msg['id']):
-            self.logger.error(f"Discarding message {msg} --> {msg['id']}<< is not a valid UUID version 4")
+            if self.logger is not None:
+                self.logger.error(f"Discarding message {msg} --> {msg['id']}<< is not a valid UUID version 4")
             return False
         if not self.valid_datetime(msg['ts']):
-            self.logger.error(f"Discarding message {msg['id']}: >>{msg['ts']}<< is not a valid datetime in format '%Y-%m-%dT%H:%M:%S.%f'")
+            if self.logger is not None:
+                self.logger.error(f"Discarding message {msg['id']}: >>{msg['ts']}<< is not a valid datetime in format '%Y-%m-%dT%H:%M:%S.%f'")
             return False
         if not self.valid_source(msg['src']):
-            self.logger.error(f"Discarding message {msg['id']}: >>{msg['src']}<< is not a valid origin")
+            if self.logger is not None:
+                self.logger.error(f"Discarding message {msg['id']}: >>{msg['src']}<< is not a valid origin")
             return False
         if not self.valid_priority(msg['prio']):
-            self.logger.error(f"Discarding message {msg['id']}: >>{msg['prio']}<< is not a valid priority")
+            if self.logger is not None:
+                self.logger.error(f"Discarding message {msg['id']}: >>{msg['prio']}<< is not a valid priority")
             return False
-        self.logger.debug(f"Validated message {msg}")
+        if self.logger is not None:
+            self.logger.debug(f"Validated message {msg}")
         return True
 
 

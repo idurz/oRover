@@ -19,16 +19,25 @@ from base_process import baseprocess
 started_processes = []
 
 class base(baseprocess):
-    pass
+    # Signal handler for graceful shutdown of myself and child processes
+    def terminate(self,signalNumber, frame):
+        #self.pub.close()
+        #self.sub.close()
+        self.ctx.term()
+        self.running = False
+        sys.exit()
+
 
 # Signal handler for graceful shutdown of myself and child processes
 def stop_processes(signalNumber, frame):
     global started_processes
     logging.info(f"Received termination signal {signalNumber}, stopping child processes")
     print(f"Received termination signal {signalNumber}, stopping child processes")
+    
     # requesting child processes to stop in reverse order of starting, to allow for dependencies to stop gracefully
     for p in reversed(started_processes):
         logging.info(f"Terminating process {p['name']} with PID {p['process'].pid}")   
+        print(f"Terminating process {p['name']} with PID {p['process'].pid}")
         p["process"].terminate()
     sys.exit()
 
