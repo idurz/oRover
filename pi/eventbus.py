@@ -10,21 +10,10 @@ import os
 from base_process import baseprocess
 
 class base(baseprocess):
-     # event bus uses alternative method to create pub socket, using XSUB/XPUB sockets and zmq.proxy to allow for dynamic subscribers and publishers without needing to restart the event bus      
 
-     def create_pub_socket(self, ctx):
-          xpub = ctx.socket(zmq.XPUB)
-          #xpub.bind("tcp://*:5555")
-          xpub.bind(self.config.get("eventbus","bus_xpub_socket",fallback="tcp://*:5555"))
-          self.logger.debug(f"Event bus XPUB socket bound to {self.config.get('eventbus','bus_xpub_socket',fallback='tcp://*:5555')}")
-          return xpub
-
+     # No need to create a sub socket, we will use zmq.proxy to forward messages between the XSUB and XPUB sockets, so we don't need to create a sub socket here     
      def create_sub_socket(self, ctx):
-          xsub = ctx.socket(zmq.XSUB)
-          #xsub.connect("tcp://localhost:5556")
-          xsub.connect(self.config.get("eventbus","bus_xsub_socket",fallback="tcp://localhost:5556"))
-          self.logger.debug(f"Event bus XSUB socket connected to {self.config.get('eventbus','bus_xsub_socket',fallback='tcp://localhost:5556')}")
-          return xsub
+          pass
 
 # Signal handler for graceful shutdown of myself and child processes
      def terminate(self,signalNumber, frame):
@@ -35,4 +24,16 @@ class base(baseprocess):
 #### Main execution starts here ####
 
 b = base() # Create an instance of the base class to get config and logger
-zmq.proxy(b.sub, b.pub)
+
+ctx = zmq.Context()
+xsub = b.ctx.socket(zmq.XSUB)
+xsub.connect(b.config.get("eventbus","bus_xsub_socket",fallback="tcp://localhost:5556"))
+b.logger.debug(f"Event bus XSUB socket connected to {b.config.get('eventbus','bus_xsub_socket',fallback='tcp://localhost:5556')}")
+xsub.bind("tcp://*:5556")
+
+
+xpub = b.ctx.socket(zmq.XPUB)
+xpub.bind(b.config.get("eventbus","bus_xpub_socket",fallback="tcp://*:5555"))
+b.logger.debug(f"Event bus XPUB socket bound to {b.config.get('eventbus','bus_xpub_socket',fallback='tcp://*:5555')}")
+
+zmq.proxy(xsub, xpub)

@@ -54,7 +54,6 @@ class handler:
     
 
 
-
     def cmd_set_motor_speed(message):
         source = orover.get_name(message.get('src'))
         print(f"BOSS: in actuator_motor_wheels {source}")
@@ -67,7 +66,7 @@ class handler:
 
 
 
-class boss_server(baseprocess):
+class base(baseprocess):
 
     # override baseprocess methodes
     def handle_message(self, message):
@@ -88,5 +87,5 @@ class boss_server(baseprocess):
 
 #### Main execution starts here ####
 if __name__ == "__main__":
-    p = boss_server()
+    p = base()
     p.run()

@@ -15,6 +15,7 @@ import os
 import oroverlib as orover
 from base_process import baseprocess
 
+
 class base(baseprocess):
     def create_pub_socket(self, ctx):
         return None # No pub socket needed for logserver, we only receive logs via the socket handler
@@ -97,16 +98,20 @@ class LogRecordSocketReceiver(socketserver.ThreadingTCPServer):
 
 #### Main execution starts here ####
 if __name__ == '__main__':
-    b =base() # Create an instance of the base class to get config and logger
 
-    config  = orover.readConfig()
-    #setproctitle.setproctitle(f"orover:{orover.getmodulename(config)}")
+    b = base() # Create an instance of the base class to get config and logger
+
+    #config  = orover.readConfig()
 
     logformat = b.config.get("orover", "logformat", raw=True, fallback="%(asctime)s %(name)-15s %(levelname)-8s %(message)s")
     datefmt   = b.config.get("orover", "logdatefmt", raw=True, fallback="%Y-%m-%d %H:%M:%S")
-    filename  = b.config.get("orover", "logfile",    fallback="logserver.log")
+    logfile  = b.config.get("orover", "logfile",    fallback="orover.log")
 
-    logging.basicConfig(format=logformat, datefmt=datefmt, filename=filename)
+    #Check if there is already a logfile, if so, rename it with a timestamp to avoid overwriting previous logs
+    if os.path.exists(logfile):
+        os.rename(logfile, f"{os.path.splitext(os.path.basename(logfile))[0]}_{b.log_timestamp()}.log")
+    
+    logging.basicConfig(format=logformat, datefmt=datefmt, filename=logfile)
 
     tcpserver = LogRecordSocketReceiver()
     tcpserver.serve_until_stopped()

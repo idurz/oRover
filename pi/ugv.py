@@ -106,8 +106,10 @@ class ugv_server(baseprocess):
     # Loops indefinitely, checking for incoming zmq messages and serial data. Calls the appropriate handlers for each type of message.
     def run(self):
         while self.running:
+            print("UGV server looping, checking for messages...")
             events = dict(self.poller.poll(timeout=10))
             if self.sub in events:
+                print("UGV server looping, receiving event...")
                 topicmsg = self.sub.recv()
                 # retrieve the topic and message from the received zmq message, and validate the message structure and content
                 _ , msg = self.demogrify(topicmsg)
@@ -119,11 +121,12 @@ class ugv_server(baseprocess):
                 
             # Check for serial data regardless of zmq events, to ensure we don't miss any incoming data
             data = u.serial_port.read(1024)
+            print("UGV server looping, poert read...")
             if data:
-                u.logger.debug(f"Received serial data: {data}")
+                print(f"Received serial data: {data}")
                 msg = self.handle_serial(data)
                 if msg:
-                    u.logger.debug(f"Publishing message from serial data: {msg}")  
+                    print(f"Publishing message from serial data: {msg}")  
                 self.pub.send_json(msg)
 
 

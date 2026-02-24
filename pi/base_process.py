@@ -59,7 +59,8 @@ class baseprocess:
             return "default"  # default name if not found in config
         return sys.argv[0].split('.')[0]
 
-
+    def log_timestamp(self):
+        return datetime.datetime.now().strftime('%Y%m%d%H%M%S')
 
     # Set up logging to send log messages to the boss process via a socket handler
     def setlogger(self,config,myname):
