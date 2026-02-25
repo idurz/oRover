@@ -6,8 +6,8 @@
      Description  interface for UGV control (motor commands etc)
 """
 
-from base_process import baseprocess
 import oroverlib as orover
+from base_process import baseprocess
 import serial
 import time
 import zmq
@@ -45,11 +45,17 @@ class handler:
 
 
     # Retrieve IMU Data {"T":126} Used to obtain IMU information, including heading angle, geomagnetic field, acceleration, attitude, temperature, etc.
-    def cmd_getParam(message):
+    def cmd_getParam(self,message):
         # Retrieve IMU Data
         u.logger.debug(f"cmd_getParam -> {message}")
-        return {"T":"126"}
+        s = json.dumps({"T":"126"})
+        return s
 
+    def cmd_setParam(self,message):
+        # Retrieve IMU Data
+        u.logger.debug(f"cmd_setParam -> {message}")
+        s = json.dumps({"T":3,"lineNum":2,"Text":"Rudi"})
+        return s
 
     # Retrieve Chassis Information Feedback {"T":130,"cmd":<x>} Serial Port Continuous Feedback x=0 turn off (default),x=1 (turn on). When this function is not enabled, the chassis information feedback is realized through a question-and-answer method, and the above CMD_BASE_FEEDBACK and so on are used to get the chassis information feedback. When this function is enabled, the chassis can continuously feedback information, and not need to query through the host, suitable for the ROS system. 
 
@@ -63,7 +69,7 @@ class handler:
 
 
 
-class ugv_server(baseprocess):
+class base(baseprocess):
 
     # serial data handler, translates the serial data to a message and sends it to the bus
     def handle_serial(self, data):
@@ -79,49 +85,34 @@ class ugv_server(baseprocess):
         return None
 
 
-
-    # zmq message handler, translates the message to a serial command and sends it to the UGV
-    def handle_message(self, message):
-
-        reason = message['reason']
-        #try:
-        handler_routine = orover.DISPATCH[reason]
-        #except KeyError:
-        #    u.logger.debug(f"Message discarded: {message['id']}: No handler for reason {u.enum_to_name(reason)} available in UGV server") 
-        #    return
-        serial_cmd = handler_routine(message)
-        if serial_cmd is None:
-            u.logger.debug(f"zmq message not correctly translated to serial output {message}, discarded")
-            return          
-
-        # write output to serial port, with locking to ensure thread safety. 
-        u.serial.get_serial_lock.acquire()
-        u.serial_port.write(serial_cmd)
-        u.serial.get_serial_lock.release()
-        return
-    
-       
-
-
-    # Loops indefinitely, checking for incoming zmq messages and serial data. Calls the appropriate handlers for each type of message.
     def run(self):
+        # Main loop to receive messages from the bus and handle them, runs until termination signal is received
+        for j in dir(self.handler):
+
+            if callable(getattr(self.handler, j)) and not j.startswith("__"):
+                c, topic = j.split("_", 1)
+                self.dispatch[self.name_to_enum(topic)] = getattr(self.handler, j)
+                self.known_topics.append(f"{c}.{topic}")
+
         while self.running:
-            print("UGV server looping, checking for messages...")
+            # read topic and message from the SUB socket, then handle the message
             events = dict(self.poller.poll(timeout=10))
             if self.sub in events:
-                print("UGV server looping, receiving event...")
-                topicmsg = self.sub.recv()
-                # retrieve the topic and message from the received zmq message, and validate the message structure and content
-                _ , msg = self.demogrify(topicmsg)
-                if self.valid_message(msg):
-                    self.handle_message(msg)
-                else:
-                    u.logger.debug(f"Message discarded: >>{msg}<<: Invalid message structure or content")
-                    return
+                topicmsg = self.sub.recv_string()
+                result = self.handle_message(topicmsg)
+
+                # write output to serial port, with locking to ensure thread safety. 
+                if result:
+                    #serial.lock.acquire()
+                    s = f"{result}\n"
+
+                    print(f"Writing to serial port: {s}")
+                    u.serial_port.write(s.encode())
+                    #serial.lock.release()
                 
             # Check for serial data regardless of zmq events, to ensure we don't miss any incoming data
             data = u.serial_port.read(1024)
-            print("UGV server looping, poert read...")
+            #print("UGV server looping, port read...")
             if data:
                 print(f"Received serial data: {data}")
                 msg = self.handle_serial(data)
@@ -178,15 +169,17 @@ def rotate(ser, angle_deg):
     stop(ser)
 
 
-
 #### Main execution starts here ####
 if __name__ == "__main__":
-    u = ugv_server()
+    h = handler() # Instantiate the handler class, which contains the message handlers for the BOSS server
+    u = base() # Instantiate the base class, which contains the main loop and message handling logic for the BOSS server
+    u.handler = h # Set the handler instance in the base class, so that the message handlers can be called when messages are received
 
     serial_dev = u.config.get("serial", "port", fallback="/dev/ttyUSB0")
     serial_baud = u.config.getint("serial", "baudrate", fallback=115200)
+    print(f"Opening serial port {serial_dev} with baudrate {serial_baud}")
 
-    u.serial_port = serial.Serial(serial_dev, baudrate=serial_baud, timeout=0)
+    u.serial_port = serial.Serial(serial_dev, baudrate=serial_baud, timeout=1)
 
     u.poller = zmq.Poller()
     u.poller.register(u.sub, zmq.POLLIN)

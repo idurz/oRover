@@ -45,17 +45,17 @@ def stop_processes(signalNumber, frame):
 
 # Check if all commands and events are defined in the DISPATCH dictionary of the servers
 def startup_checks(config):
-    mising_dict = False
-    for c in list(orover.cmd) + list(orover.event):
-         if not c in orover.DISPATCH:
-            msg = f"{c.name} Not defined in DISPATCH dictionary '{c.__class__.__name__}' of the servers"
-            b.logging.error(msg)
-            print(msg)  
-            mising_dict = True
+    # mising_dict = False
+    # for c in list(orover.cmd) + list(orover.event):
+    #      if not c in orover.DISPATCH:
+    #         msg = f"{c.name} Not defined in DISPATCH dictionary '{c.__class__.__name__}' of the servers"
+    #         b.logging.error(msg)
+    #         print(msg)  
+    #         mising_dict = True
 
-    if mising_dict:
-        logging.error("Startup checks for DISPATCH dictionary failed, exiting") 
-        sys.exit("Startup checks for DISPATCH dictionary failed, exiting")
+    # if mising_dict:
+    #     logging.error("Startup checks for DISPATCH dictionary failed, exiting") 
+    #     sys.exit("Startup checks for DISPATCH dictionary failed, exiting")
         
     return
 

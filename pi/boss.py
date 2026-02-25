@@ -7,7 +7,7 @@
 """
 
 import oroverlib as orover
-from base_process import baseprocess
+from base_process import baseprocess, handler
 
 class handler:
     """ Contains the handlers for BOSS messages. Each handler takes a message as input and returns a result string. 
@@ -27,7 +27,7 @@ class handler:
            ,"body"  : JSON; contains parameters depending on type of message
     """
 
-    def event_object_detected(message):
+    def event_object_detected(self,message):
         sensor = p.enum_to_name(message.get('src'))
         body = message.get('body', {})
         if not "distance" in body:
@@ -39,10 +39,7 @@ class handler:
         print(f"BOSS: Warning: object too close to sensor {sensor} distance {d} cm")
         return True
     
-
-
-    
-    def cmd_shutdown(socket,message,context, logger):
+    def cmd_shutdown(self,socket,message,context, logger):
         print(f"Shutdown message {message}")
         reason = message.get('body', {}).get('value', 'unknown')
         print(f"BOSS: Shutdown requested, reason: {reason}")
@@ -51,41 +48,23 @@ class handler:
         context.term()
         logger.info('Finished')
         exit(0)
-    
 
 
-    def cmd_set_motor_speed(message):
+    def cmd_set_motor_speed(self,message):
         source = orover.get_name(message.get('src'))
         print(f"BOSS: in actuator_motor_wheels {source}")
         body = message.get('body', {})
         if not "left_speed" in body:
-            return f"message {message['id']} received without left_speed parameter in body"
-      
+            return f"message {message['id']} received without left_speed parameter in body"    
         return
     
-
-
 
 class base(baseprocess):
-
-    # override baseprocess methodes
-    def handle_message(self, message):
-
-        reason = message['reason']
-        try:
-            handler_routine = orover.DISPATCH[reason]
-        except KeyError:
-            p.logger.debug(f"Message discarded: {message['id']}: No handler for reason {self.enum_to_name(reason)} available in BOSS server") 
-            return
-       
-        result = handler_routine(message)
-        p.logger.debug(f"Message handled : {message}, result: {result}")
-        return
-
-
-    
+    pass
 
 #### Main execution starts here ####
 if __name__ == "__main__":
-    p = base()
-    p.run()
+    h = handler() # Instantiate the handler class, which contains the message handlers for the BOSS server
+    p = base() # Instantiate the base class, which contains the main loop and message handling logic for the BOSS server
+    p.handler = h # Set the handler instance in the base class, so that the message handlers can be called when messages are received
+    p.run() # Start the main loop of the BOSS server, which will listen for messages and call the appropriate handlers based on the message reason
