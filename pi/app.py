@@ -1,69 +1,94 @@
 from flask import Flask, render_template, jsonify, request
+from flask_socketio import SocketIO
 from ugv import *
-import os
-import sys
-import time
-import math
+#import time
+#import math
 import csv
-import json
-import zmq # pyright: ignore[reportMissingImports]
+#import json
+import queue
 import oroverlib as orover
-import setproctitle
-import logging
-import logging.handlers
 
+import oroverlib as orover
+from base_process import baseprocess, handler
 
-def getmodulename(config):
-    # Returns the name of the current module, based on the filename of the script, or the name defined in the config file if it matches the current 
-    # script name. This allows for more flexible naming of processes in the config file
-    if sys.argv[0] in config.items('scripts'): # sys.argv[0] contains the name of the currently running script, no path and with ".py" extension.
-        print(f"Found script name {sys.argv[0]} in config, using corresponding name {config.get('scripts',sys.argv[0])} for logging")
-        for name, path in config.items('scripts'): # find item in config that matches the current script name and return the key (name) of that item
-            if sys.argv[0] == os.path.basename(path):
-                return name
-        return "default"  # default name if not found in config
-    return sys.argv[0].split('.')[0]
+heartbeats = {};
 
+class handler:
+    """ Contains the handlers for BOSS messages. Each handler takes a message as input and returns a result string. 
+        The handlers are called by the BOSS server when a message with the corresponding reason is received.
+        Handlers do not return a response to the sender, but can perform actions based on the message content, 
+        like logging or sending new messages to the bus.
 
-def setlogger(config,myname):
-    # Set up logging to send log messages to the boss process via a socket handler
-    rootLogger = logging.getLogger()
-    rootLogger.setLevel(logging.DEBUG)
-    socketHandler = logging.handlers.SocketHandler('localhost',
-                     logging.handlers.DEFAULT_TCP_LOGGING_PORT)
-    rootLogger.addHandler(socketHandler)
-    logger = logging.getLogger(myname)
+        Each message is expected to have the following structure:
 
-    loglevel = config.get('orover','loglevel',fallback="UNKNOWN").upper()
-    known_level = (loglevel in ["DEBUG","INFO","WARNING","ERROR","CRITICAL"])
-    if not known_level:
-        logger.setLevel("ERROR")
-        logger.error((f"Invalid log level {loglevel} in config, defaulting to 'ERROR'"))
-    else:
-        logger.setLevel(loglevel.upper())
+            "id"    : UUID
+           ,"ts"    : datetime of message in '%Y-%m-%dT%H:%M:%S.%f' format
+           ,"src"   : message source, e.g. specific sensor or actuator, should be in class origin
+           ,"me"    : sending script name
+           ,"host"  : sending node
+           ,"prio"  : priority of message, should be in class priority
+           ,"reason": type of message, should be in class origin, state, event, origin, actuator, controller, priority, cmd
+           ,"body"  : JSON; contains parameters depending on type of message
+    """
+    def event_heartbeat(self, msg):
     
-    return logger
+        global heartbeats
+        # event.heartbeat {"id": "2d2dbb81-64f8-46bd-9585-2b64280af9a2", "ts": "2026-03-14T19:55:52.527138", "src": 1000, 
+        # "me": "eventbus", "host": "robot", "prio": 5, "reason": 6402, "body": {"script": "eventbus"}}
+
+        if "me" in msg and "ts" in msg:
+           # store name and timestamp of last heartbeat for each script
+           heartbeats[msg["me"]] = msg["ts"]
+           p.logger.debug(f"Stored heartbeat from {msg['me']} at {msg['ts']}")
+        return True
+    
+    def state_battery(self, msg):
+        # Example handler for battery state messages, expects body to contain "voltage" field
+        voltage = msg.get("body", {}).get("voltage")
+        if voltage is not None:
+            p.logger.info(f"Battery voltage: {voltage} V")
+            message_queue.put(msg.get("body"))
+            return True
+        else:
+            p.logger.warning("Received battery state message without voltage field")
+            return False
+        
+    def state_imu(self, msg):
+        # Example handler for IMU state messages, expects body to contain "heading", "pitch", and "roll" fields
+        heading = msg.get("body", {}).get("heading")
+        pitch = msg.get("body", {}).get("pitch")
+        roll = msg.get("body", {}).get("roll")
+        if heading is not None and pitch is not None and roll is not None:
+            p.logger.info(f"IMU data - Heading: {heading} deg, Pitch: {pitch} deg, Roll: {roll} deg")
+            message_queue.put(msg.get("body"))
+            return True
+        else:
+            p.logger.warning("Received IMU state message without required fields")
+            return False
+    
+    
+class base(baseprocess):
+    pass
 
 
 def rx_commands():
-    #open file and fill commands
-    commands.clear()
-    with open("commands.csv", "r") as file:
-        reader = csv.DictReader(file)
-        for row in reader:
-            commands.append((float(row["distance"]), float(row["angle"])))
-
+#    #open file and fill commands
+#    commands.clear()
+#    with open("commands.csv", "r") as file:
+#        reader = csv.DictReader(file)
+#        for row in reader:
+#            commands.append((float(row["distance"]), float(row["angle"])))
 #    ser = serial.Serial(UART_PORT, BAUDRATE, timeout=1)
-    time.sleep(2)  # allow UART to settle
+#    time.sleep(2)  # allow UART to settle
 
     #execute commands
-    for distance, angle in commands:
-        print(f"Driving {distance} m")
+#    for distance, angle in commands:
+#        print(f"Driving {distance} m")
 #        drive_straight(ser, distance)                       ombouwen naar socket
 
-        time.sleep(0.5)
+#        time.sleep(0.5)
 
-        print(f"Turning {angle} degrees")
+#        print(f"Turning {angle} degrees")
  #       rotate(ser, angle)                                 ombouwen naar socket
 
     print("Done.")
@@ -73,16 +98,57 @@ def rx_commands():
 ###########################################################################
 # Web server
 ###########################################################################
+h = handler() # Instantiate the handler class, which contains the message handlers for the BOSS server
+p = base(True) # WITH threading enabled for ZMQ listener
+p.handler = h # Set the handler instance in the base class
+p.fetchtopics() # We are not using the run; thus we need to fetch the topics here to register the handlers for the BOSS server
+
 config = orover.readConfig() # read config and setup logging
-app = Flask(getmodulename(config) 
+app = Flask(p.getmodulename(config) 
            ,static_folder   = config.get("app","static_folder",   fallback="static")
            ,template_folder = config.get("app", "template_folder", fallback="template"))
-commands = [] # globals
+app.config['debug'] = config.get("app","debug", fallback="True") 
+app.config['host'] =  config.get("app","host", fallback="localhost")
+app.config['port'] = config.getint("app","port", fallback=5000)
+app.config['SECRET_KEY'] = config.get("app","secret_key", fallback="default_secret_key")
 
+commands = [] # globals
+#context = zmq.Context()
+
+socketio = SocketIO(app, cors_allowed_origins="*")
+message_queue = queue.Queue() # Queue to store incoming messages
 
 @app.route("/")
 def index():
     return render_template("index.html")
+
+
+# ---------------------------
+# EXAMPLE HTTP route -> publish ZMQ
+# ---------------------------
+@app.route("/publish", methods=["POST"])
+def publish():
+
+    data = request.json
+    message = data.get("message")
+
+    pub_socket.send_string(message)
+
+    return jsonify({"status": "sent", "message": message})
+
+
+# ---------------------------
+# EXAMPLE HTTP route -> frontend fetch messages
+# ---------------------------
+@app.route("/messages")
+def get_messages():  
+
+    messages = []
+
+    while not message_queue.empty():
+        messages.append(message_queue.get())
+
+    return jsonify(messages)
 
 
 @app.route("/control", methods=["POST"])
@@ -172,17 +238,8 @@ def route():
     return jsonify(status="route accepted", steps=len(route))
 
 
-
 #### Main execution starts here ####
 if __name__ == "__main__":
-
-    logger = setlogger(config,getmodulename(config))
-    setproctitle.setproctitle(f"orover:{getmodulename(config)}")
-
-    # run flask app
-    logger.info(f"Starting Flask app with debug={config.getboolean('app','debug',fallback=True)}, host={config.get('app','host',fallback='localhost')}, port={config.getint('app','port',fallback=5000)}")
-    #app.run(debug=config.getboolean("app","debug",fallback=True)
-    #       ,host=config.get("app","host",fallback="localhost")
-    #       ,port=config.getint("app","port",fallback=5000)
-    #       )
-    app.run(debug=True, host="0.0.0.0", port=5000)
+   
+    p.logger.info(f"Starting Flask app with debug={config.getboolean('app','debug',fallback=True)}, host={config.get('app','host',fallback='localhost')}, port={config.getint('app','port',fallback=5000)}")
+    socketio.run(app)

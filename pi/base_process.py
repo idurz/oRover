@@ -26,7 +26,7 @@ class handler:
 class baseprocess:
     # Base class for all processes, providing common functionality like event handling and heartbeat
 
-    def __init__(self):
+    def __init__(self,dothreading=False):
         # Beam me up, Scotty! Initialize the process, read configuration, set up logging and ZMQ sockets, and prepare for message handling and heartbeat
 
         self.config, self.configfile = orover.readConfig(True)  # Read configuration from config.ini file
@@ -40,10 +40,16 @@ class baseprocess:
         #print(f"Starting server with handlers: {dir(self.handler)}")
         
         #self.handler = handler() # Create an instance of the handler class to load the message handlers defined in the class
-        
+        self.running = True
+
         self.ctx = zmq.Context() # Create ZMQ context
         self.pub = self.create_pub_socket(self.ctx) # Create zmq PUB socket for event bus, connect to port
-        self.sub = self.create_sub_socket(self.ctx) # Create zmq SUB socket for event bus, bind to port
+
+        if not dothreading:
+            self.sub = self.create_sub_socket(self.ctx) # Create zmq SUB socket for event bus, bind to port
+        else:
+            threading.Thread(target=self.zmq_threading_listener, daemon=True).start()
+
 
         self.dispatch = {}
         self.known_topics = []
@@ -62,6 +68,15 @@ class baseprocess:
             self.hb_thread = threading.Thread(target=self._heartbeat_loop, daemon=True)
             self.hb_thread.start()
 
+    def zmq_threading_listener(self):
+        # ZMQ listener for threading mode, runs in a separate thread and listens for messages on the SUB socket, 
+        # then handles the messages. Will not be called if not in threading mode.
+        self.logger.debug(f"Starting ZMQ threading listener for {self.myname}")
+        self.sub = self.create_sub_socket(self.ctx)
+        while self.running:
+            topicmsg = self.sub.recv_string()
+            self.logger.debug(f"Received message on threading listener: {topicmsg}")
+            result = self.handle_message(topicmsg)
 
     def get_lock(self):
         # Without holding a reference to our socket somewhere it gets garbage collected when the function exits
@@ -166,6 +181,7 @@ class baseprocess:
     
     def mogrify(self, topic, msg):
         # json encode the message and prepend the topic
+        self.logger
         return topic + ' ' + json.dumps(msg)
 
 
@@ -183,7 +199,10 @@ class baseprocess:
     def send_event(self, src, reason,body={}, prio=None):
         # Publish an event to the bus, with validation of fields and JSON body
         if self.logger is not None:
-            self.logger.debug(f"Preparing to send event with src {src}, reason {reason}, body {body} and prio {prio}")
+            # find src in enums for better logging, otherwise log the numeric value
+            src_name = self.enum_to_name(src)
+            reason_name = self.enum_to_name(reason) 
+            self.logger.debug(f"Preparing to send event with src {src_name}, reason {reason_name}, body {body} and prio {prio}")
 
         if not isinstance (src,(orover.origin, orover.actuator, orover.controller)):
             if self.logger is not None:
@@ -346,20 +365,29 @@ class baseprocess:
                 result = handler_routine(msg)
                 self.logger.debug(f"Message handled : {msg}, result: {result}")
                 return result
+            else:
+                self.logger.error(f"Invalid message: {msg}")
+        else:
+            self.logger.error(f"Received message with topic {topic} which is not in known topics {self.known_topics}, discarding message")
         return None   
 
-
-    def run(self):
-        # Main loop to receive messages from the bus and handle them, runs until termination signal is received
+    def fetchtopics(self):
+        # Fetch the list of topics from the handler methods defined in the handler class, and populate the dispatch dictionary and known_topics list
         for j in dir(self.handler):
-
             if callable(getattr(self.handler, j)) and not j.startswith("__"):
                 c, topic = j.split("_", 1)
                 self.logger.debug(f"Registering handler for topic {topic} as {self.name_to_enum(topic)}")
                 self.dispatch[self.name_to_enum(topic)] = getattr(self.handler, j)
                 self.known_topics.append(f"{c}.{topic}")
+        self.logger.info(f"Registered handlers for topics: {self.known_topics}")
+    
+
+    def run(self):
+        # Main loop to receive messages from the bus and handle them, runs until termination signal is received
+        self.fetchtopics() # Fetch the topics and handlers before starting the main loop
 
         while self.running:
             # read topic and message from the SUB socket, then handle the message
             topicmsg = self.sub.recv_string()
+            self.logger.debug(f"Received message on normal listener: {topicmsg}")
             result = self.handle_message(topicmsg)

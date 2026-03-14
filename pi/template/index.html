@@ -57,8 +57,15 @@
 	<button onclick="sendRoute()">📤 Send route</button>
   </div>
 
-
+<script src="/socket.io/socket.io.js"></script>
 <script>
+
+const socket = io()
+
+socket.on("telemetry", (data) => {
+    console.log("New telemetry:", data)
+})
+
 async function sendAction(action) {
   try {
     const res = await fetch('/control', {

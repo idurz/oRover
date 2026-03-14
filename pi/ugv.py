@@ -6,6 +6,8 @@
      Description  interface for UGV control (motor commands etc)
 """
 
+import uuid
+
 import oroverlib as orover
 from base_process import baseprocess
 import serial
@@ -81,8 +83,8 @@ class base(baseprocess):
             u.logger.debug(f"Failed to parse serial data: {data} with exception {e}")   
             return None
         
-        u.logger.debug(f"Serialized data {msg} but no handler implemented, returning None")  
-        return None
+        result = serial_data_received(msg)
+        return result
 
 
     def run(self):
@@ -168,6 +170,31 @@ def rotate(ser, angle_deg):
 
     stop(ser)
 
+def serial_data_received(msg):
+    # This function is called when serial data is received, it should parse the message and return a new message 
+    # to be published to the bus. For example, if the incoming message has a type "imu_data", you can create a new 
+    # message with the IMU data and return it
+    u.logger.debug(f"serial_data_received -> {msg}")   
+
+    if "T" in msg and msg["T"] == 1001: # IMU data
+        #Serialized data {'T': 1001, 'L': 0, 'R': 0, 'r': -0.249505609, 'p': -0.54175359, 'y': 'null', 'v': 12.37787056} 
+        u.send_event(src = orover.origin.sensor_imu
+                    ,reason = orover.state.battery
+                    ,body={"voltage": msg.get("v")})
+        
+        u.send_event(src = orover.origin.sensor_imu
+                    ,reason = orover.state.motion
+                    ,body={"heading":     msg.get("r")
+                          ,"roll":        msg.get("y")
+                          ,"left_speed":  msg.get("L")
+                          ,"right_speed": msg.get("R")
+                          ,"pitch":       msg.get("p")
+                        }
+                    )
+        return True
+
+    u.logger.debug(f"Received serial data with unrecognized format: {msg}, returning False")  
+    return False
 
 #### Main execution starts here ####
 if __name__ == "__main__":
