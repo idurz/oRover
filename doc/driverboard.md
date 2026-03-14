@@ -8,7 +8,7 @@ Some connectors from the driver board are fed outside the chassis. These connect
 Avaible:
   * 5V
   * GND
-  * TX
+  * TX (hint don't forget to connect TX from driverboard to RX from Raspberry and other way round)
   * RX
   * SCL
   * SDA
@@ -68,3 +68,4 @@ See also [JSON Commands](https://www.waveshare.com/wiki/UGV01#JSON_Command_Set)
 |IO4 IO5 Control|{"T":132,"IO4":<val>,"IO5":,<val>}|For setting the PWM of IO4 and IO5.|
 |External Module Models|{"T":4,"cmd":<x>}|x=0: Null - 1: RoArm-M2 - 3: Gimbal|
 |Pan-tilt Control|{"T":133,"X":45,"Y":45,"SPD":0,"ACC":0}|If the product is installed with a pan-tilt, it can be controlled by this command. The X value is the horizontal angle, the positive value is to the left, and the negative value is to the right. The Y value is the vertical angle, the positive value is up, and the negative value is down.|
+|Get Dev Info|{"T":405}|Request device info on ip address, boot mode, rssi, wifi STA and password etc|

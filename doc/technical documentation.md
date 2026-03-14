@@ -62,7 +62,7 @@ The OS, via the job scheduler, will ensure that oRover is automatic started at s
 - oRover boss
 should be started at the minimum. Other components e.g. for sensors etc. need to be started by the launcher as well. The oRover system consists of the following parts:
 
-![system view](./pics/orover%20system%20view.png)
+![system view](./pics/orover%20messaging-system%20view.drawio.png)
 
 Follow the blue links in the table for the descriptions of the components:
 

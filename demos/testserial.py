@@ -14,7 +14,7 @@ serial_baud = 115200
 print(f"Opening serial port {serial_dev} with baudrate {serial_baud}")
 
 serial_port = serial.Serial(serial_dev, 115200, timeout=1)
-s = f'{{"T":1,"L":0.5,"R":0.5}}\n'
+s = f'{{"T":1,"L":0.5,"R":0.5}}' + b'\n'
 print
 serial_port.write(s.encode())
 a = serial_port.readline()

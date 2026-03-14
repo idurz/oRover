@@ -289,10 +289,16 @@ class baseprocess:
         return True
 
     
-    def valid_source(self, src):
+    def valid_source(self, msg):
         # test method to validate source
-        return src in orover.controller, orover.origin
-   
+        try:
+            r = msg['src'] in orover.controller or msg['src'] in orover.origin
+        except:
+            if self.logger is not None:
+                self.logger.error(f"Exception {msg['src']}, must be in orover.controller or orover.origin")
+            return False
+        return r
+
     
     def valid_priority(self,prio):
         # test method to validate priority
@@ -313,7 +319,7 @@ class baseprocess:
             if self.logger is not None:
                 self.logger.error(f"Discarding message {msg['id']}: >>{msg['ts']}<< is not a valid datetime in format '%Y-%m-%dT%H:%M:%S.%f'")
             return False
-        if not self.valid_source(msg['src']):
+        if not self.valid_source(msg):
             if self.logger is not None:
                 self.logger.error(f"Discarding message {msg['id']}: >>{msg['src']}<< is not a valid origin")
             return False
