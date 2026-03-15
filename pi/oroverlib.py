@@ -79,7 +79,6 @@ class health_status(IntEnum):
 @unique
 class origin(IntEnum):
     """Robot known message sources grouped as Enums."""
-    heartbeat                          = 1000
     sensor_ultrasonic_front            = 1001
     sensor_ultrasonic_rear             = 1002
     sensor_ultrasonic_left             = 1003
@@ -96,7 +95,19 @@ class origin(IntEnum):
     sensor_collision_front             = 1080   
     sensor_collision_rear              = 1081
     sensor_collision_top               = 1082
-    test_message                       = 1090 
+    test_message                       = 1090
+    orover_launcher                    = 1500
+    orover_logserver                   = 1501
+    orover_eventbus                    = 1502
+    orover_boss                        = 1503
+    orover_hcsr04                      = 1504
+    orover_ugv                         = 1505
+    orover_app                         = 1506
+    orover_user1                       = 1511
+    orover_user2                       = 1512
+    orover_user3                       = 1513
+    orover_user4                       = 1514
+    orover_user5                       = 1515
     
 @unique
 class actuator(IntEnum):

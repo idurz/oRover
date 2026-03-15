@@ -26,7 +26,18 @@ class handler:
            ,"reason": type of message, should be in class origin, state, event, origin, actuator, controller, priority, cmd
            ,"body"  : JSON; contains parameters depending on type of message
     """
+    def event_heartbeat(self, msg):
+    
+        global heartbeats
+        # event.heartbeat {"id": "2d2dbb81-64f8-46bd-9585-2b64280af9a2", "ts": "2026-03-14T19:55:52.527138", "src": 1000, 
+        # "me": "eventbus", "host": "robot", "prio": 5, "reason": 6402, "body": {"script": "eventbus"}}
 
+        if "me" in msg and "ts" in msg:
+           # store name and timestamp of last heartbeat for each script
+           heartbeats[msg["me"]] = msg["ts"]
+           p.logger.debug(f"Stored heartbeat from {msg['me']} at {msg['ts']}")
+        return True
+    
     def event_object_detected(self,message):
         sensor = p.enum_to_name(message.get('src'))
         body = message.get('body', {})
@@ -64,7 +75,9 @@ class base(baseprocess):
 
 #### Main execution starts here ####
 if __name__ == "__main__":
+    
+    heartbeats = {} # Dictionary to store the last heartbeat timestamp for each script, key is script name, value is timestamp of last heartbeat
+    
     h = handler() # Instantiate the handler class, which contains the message handlers for the BOSS server
-    p = base() # Instantiate the base class, which contains the main loop and message handling logic for the BOSS server
-    p.handler = h # Set the handler instance in the base class, so that the message handlers can be called when messages are received
+    p = base(handler=h) # Instantiate the base class, which contains the main loop and message handling logic for the BOSS server
     p.run() # Start the main loop of the BOSS server, which will listen for messages and call the appropriate handlers based on the message reason

@@ -1,20 +1,15 @@
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
 from ugv import *
-#import time
-#import math
 import csv
-#import json
 import queue
-import oroverlib as orover
-
 import oroverlib as orover
 from base_process import baseprocess, handler
 
 heartbeats = {};
 
 class handler:
-    """ Contains the handlers for BOSS messages. Each handler takes a message as input and returns a result string. 
+    """ Contains the handlers for messages. Each handler takes a message as input and returns a result string. 
         The handlers are called by the BOSS server when a message with the corresponding reason is received.
         Handlers do not return a response to the sender, but can perform actions based on the message content, 
         like logging or sending new messages to the bus.
@@ -98,12 +93,10 @@ def rx_commands():
 ###########################################################################
 # Web server
 ###########################################################################
-h = handler() # Instantiate the handler class, which contains the message handlers for the BOSS server
-p = base(True) # WITH threading enabled for ZMQ listener
-p.handler = h # Set the handler instance in the base class
-p.fetchtopics() # We are not using the run; thus we need to fetch the topics here to register the handlers for the BOSS server
-
 config = orover.readConfig() # read config and setup logging
+h = handler() # Instantiate the handler class, which contains the message handlers for the BOSS server
+p = base(handler=h,dothreading=True) # WITH threading enabled for ZMQ listener
+    
 app = Flask(p.getmodulename(config) 
            ,static_folder   = config.get("app","static_folder",   fallback="static")
            ,template_folder = config.get("app", "template_folder", fallback="template"))
@@ -113,10 +106,11 @@ app.config['port'] = config.getint("app","port", fallback=5000)
 app.config['SECRET_KEY'] = config.get("app","secret_key", fallback="default_secret_key")
 
 commands = [] # globals
-#context = zmq.Context()
 
-socketio = SocketIO(app, cors_allowed_origins="*")
-message_queue = queue.Queue() # Queue to store incoming messages
+# Need to change to socket io?
+
+#socketio = SocketIO(app, cors_allowed_origins="*")
+#message_queue = queue.Queue() # Queue to store incoming messages
 
 @app.route("/")
 def index():
@@ -242,4 +236,5 @@ def route():
 if __name__ == "__main__":
    
     p.logger.info(f"Starting Flask app with debug={config.getboolean('app','debug',fallback=True)}, host={config.get('app','host',fallback='localhost')}, port={config.getint('app','port',fallback=5000)}")
-    socketio.run(app)
+    #socketio.run(app)
+    app.run(debug=True,host="0.0.0.0",port=5000)

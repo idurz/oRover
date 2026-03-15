@@ -20,13 +20,30 @@ import oroverlib as orover
 import setproctitle
 
 class handler:
-    pass
+    """ Contains the handlers for messages. 
+        base process handler will handle all messages which should be handled by all processes, like heartbeat and logging.
+    """ 
+
+    def cmd_stop(self, msg):
+        # Stop request received
+        self.logger.info(f"Received stop command, shutting down {self.myname} process")
+        self.terminate(signal.SIGTERM, None)
+
+    def cmd_pause(self, msg):
+        # Pause request received. Means: do not accept messages unless cmd_resume is executed 
+        self.logger.info(f"Received pause command, pausing {self.myname} process")
+        self.pause = True
+
+    def cmd_resume(self, msg):
+        # Resume request received. Means: accept messages again
+        self.logger.info(f"Received resume command, resuming {self.myname} process")
+        self.pause = False
 
 
 class baseprocess:
     # Base class for all processes, providing common functionality like event handling and heartbeat
 
-    def __init__(self,dothreading=False):
+    def __init__(self,handler=None,dothreading=False):
         # Beam me up, Scotty! Initialize the process, read configuration, set up logging and ZMQ sockets, and prepare for message handling and heartbeat
 
         self.config, self.configfile = orover.readConfig(True)  # Read configuration from config.ini file
@@ -36,11 +53,13 @@ class baseprocess:
         self.logger = self.setlogger(self.config, self.myname)
         setproctitle.setproctitle(f"orover:{self.myname}")
 
-        #self.handler  = handler()
-        #print(f"Starting server with handlers: {dir(self.handler)}")
-        
-        #self.handler = handler() # Create an instance of the handler class to load the message handlers defined in the class
+        if self.logger is not None:
+            self.logger.info(f"{self.myname} started with PID {os.getpid()}")
+        print(f"{self.myname} started with PID {os.getpid()}")
+
+        self.handler = handler # Instantiate the handler class, which contains the message handlers for the BOSS server
         self.running = True
+        self.pause = False
 
         self.ctx = zmq.Context() # Create ZMQ context
         self.pub = self.create_pub_socket(self.ctx) # Create zmq PUB socket for event bus, connect to port
@@ -53,14 +72,12 @@ class baseprocess:
 
         self.dispatch = {}
         self.known_topics = []
+        if self.handler is not None:
+            self.fetchtopics()
         
         # Start done, register signal handler for graceful shutdown and log the start of the process
         signal.signal(signal.SIGTERM, self.terminate)
         self.running = True
-
-        if self.logger is not None:
-            self.logger.info(f"{self.myname} started with PID {os.getpid()}")
-        print(f"{self.myname} started with PID {os.getpid()}")
 
         # is heart_beat_interval configured? If so, start the heartbeat thread
         self.heart_beart_interval = self.config.getint('orover','heartbeat_interval',fallback=0)
@@ -75,7 +92,6 @@ class baseprocess:
         self.sub = self.create_sub_socket(self.ctx)
         while self.running:
             topicmsg = self.sub.recv_string()
-            self.logger.debug(f"Received message on threading listener: {topicmsg}")
             result = self.handle_message(topicmsg)
 
     def get_lock(self):
@@ -155,7 +171,8 @@ class baseprocess:
                 return f"{cls(val).__class__.__name__}.{cls(val).name}"
             except ValueError:
                 pass
-        return f"{cls(val).__class__.__name__}.unknown({val})"
+        return None
+        #return f"{cls(val).__class__.__name__}.unknown({val})"
 
     
     def name_to_enum(self, name):
@@ -262,7 +279,7 @@ class baseprocess:
     def _heartbeat_loop(self):
         # Heartbeat loop, sending a heartbeat event at the configured interval
         while self.running:
-            self.send_event(src=orover.origin.heartbeat
+            self.send_event(src=self.name_to_enum(f'orover_{self.myname}')
                            ,reason=orover.event.heartbeat
                            ,body={"script": self.myname})
             time.sleep(self.heart_beart_interval)
@@ -354,22 +371,29 @@ class baseprocess:
     def handle_message(self, topicmsg):
         # retrieve the topic and message from the received zmq message, and validate the message structure and content
         topic , msg = self.demogrify(topicmsg)
-        if topic in self.known_topics:
-            if self.valid_message(msg):
-                reason = msg['reason']
-                try:
-                    handler_routine = self.dispatch[reason]
-                except KeyError:
-                    self.logger.error(f"Message discarded: {msg['id']}: No handler for reason {self.enum_to_name(reason)} available in {self.myname} server") 
-                    return
-                result = handler_routine(msg)
-                self.logger.debug(f"Message handled : {msg}, result: {result}")
-                return result
-            else:
-                self.logger.error(f"Invalid message: {msg}")
-        else:
-            self.logger.error(f"Received message with topic {topic} which is not in known topics {self.known_topics}, discarding message")
-        return None   
+        if not topic in self.known_topics:
+            # this is not an error since we might receive messages that are not relevant for this process, but log it for debugging purposes
+             return None
+        
+        if self.pause and topic != "cmd_resume":
+            self.debug(f"Process is paused, ignoring message {msg['id']} with topic {topic}")
+            return None
+
+        if not self.valid_message(msg):
+            self.logger.error(f"Invalid message: {msg}")
+            return None   
+                
+        reason = msg['reason']
+        try:
+            handler_routine = self.dispatch[reason]
+        except KeyError:
+            self.logger.error(f"Message : {msg['id']} discarded, no handler for reason {self.enum_to_name(reason)} available in {self.myname} server")
+            return None
+        
+        result = handler_routine(msg)
+        self.logger.debug(f"Message handled : {msg}, result: {result}")
+        return result
+    
 
     def fetchtopics(self):
         # Fetch the list of topics from the handler methods defined in the handler class, and populate the dispatch dictionary and known_topics list
@@ -379,15 +403,13 @@ class baseprocess:
                 self.logger.debug(f"Registering handler for topic {topic} as {self.name_to_enum(topic)}")
                 self.dispatch[self.name_to_enum(topic)] = getattr(self.handler, j)
                 self.known_topics.append(f"{c}.{topic}")
-        self.logger.info(f"Registered handlers for topics: {self.known_topics}")
     
 
     def run(self):
         # Main loop to receive messages from the bus and handle them, runs until termination signal is received
-        self.fetchtopics() # Fetch the topics and handlers before starting the main loop
+        #self.fetchtopics() # Fetch the topics and handlers before starting the main loop
 
         while self.running:
             # read topic and message from the SUB socket, then handle the message
             topicmsg = self.sub.recv_string()
-            self.logger.debug(f"Received message on normal listener: {topicmsg}")
             result = self.handle_message(topicmsg)

@@ -93,6 +93,7 @@ for p in defined_processes:
 
     proc = subprocess.Popen(execute_command.split())  
     started_processes.append({"name": p[0], "process": proc})
+    time.sleep(1) # Give the process some time to start before starting the next one
     
 # All starts done, register signal handler for graceful shutdown
 signal.signal(signal.SIGTERM, stop_processes)

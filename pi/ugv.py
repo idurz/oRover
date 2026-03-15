@@ -89,13 +89,8 @@ class base(baseprocess):
 
     def run(self):
         # Main loop to receive messages from the bus and handle them, runs until termination signal is received
-        for j in dir(self.handler):
-
-            if callable(getattr(self.handler, j)) and not j.startswith("__"):
-                c, topic = j.split("_", 1)
-                self.dispatch[self.name_to_enum(topic)] = getattr(self.handler, j)
-                self.known_topics.append(f"{c}.{topic}")
-
+        self.fetchtopics() # Fetch the topics and handlers before starting the main loop
+        
         while self.running:
             # read topic and message from the SUB socket, then handle the message
             events = dict(self.poller.poll(timeout=10))
@@ -199,9 +194,8 @@ def serial_data_received(msg):
 #### Main execution starts here ####
 if __name__ == "__main__":
     h = handler() # Instantiate the handler class, which contains the message handlers for the BOSS server
-    u = base() # Instantiate the base class, which contains the main loop and message handling logic for the BOSS server
-    u.handler = h # Set the handler instance in the base class, so that the message handlers can be called when messages are received
-
+    u = base(handler=h,dothreading=False) # Instantiate the base class, which contains the main loop and message handling logic for the BOSS server
+ 
     serial_dev = u.config.get("serial", "port", fallback="/dev/ttyUSB0")
     serial_baud = u.config.getint("serial", "baudrate", fallback=115200)
     print(f"Opening serial port {serial_dev} with baudrate {serial_baud}")
