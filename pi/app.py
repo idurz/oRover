@@ -1,3 +1,5 @@
+from asyncio.log import logger
+
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
 from ugv import *
@@ -7,6 +9,10 @@ import oroverlib as orover
 from base_process import baseprocess, handler
 
 heartbeats = {};
+state = {"temperature": 22,
+        "speed": 13,
+        "angle": 0,
+        "voltage": 14}
 
 class handler:
     """ Contains the handlers for messages. Each handler takes a message as input and returns a result string. 
@@ -42,7 +48,7 @@ class handler:
         voltage = msg.get("body", {}).get("voltage")
         if voltage is not None:
             p.logger.info(f"Battery voltage: {voltage} V")
-            message_queue.put(msg.get("body"))
+            socketio.emit("battery_state", {"voltage": voltage})
             return True
         else:
             p.logger.warning("Received battery state message without voltage field")
@@ -55,7 +61,7 @@ class handler:
         roll = msg.get("body", {}).get("roll")
         if heading is not None and pitch is not None and roll is not None:
             p.logger.info(f"IMU data - Heading: {heading} deg, Pitch: {pitch} deg, Roll: {roll} deg")
-            message_queue.put(msg.get("body"))
+            socketio.emit("imu_state", {"heading": heading, "pitch": pitch, "roll": roll})
             return True
         else:
             p.logger.warning("Received IMU state message without required fields")
@@ -95,7 +101,8 @@ def rx_commands():
 ###########################################################################
 config = orover.readConfig() # read config and setup logging
 h = handler() # Instantiate the handler class, which contains the message handlers for the BOSS server
-p = base(handler=h,dothreading=True) # WITH threading enabled for ZMQ listener
+p = base(handler=h,dothreading=True)
+          # WITH threading enabled for ZMQ listener
     
 app = Flask(p.getmodulename(config) 
            ,static_folder   = config.get("app","static_folder",   fallback="static")
@@ -109,7 +116,7 @@ commands = [] # globals
 
 # Need to change to socket io?
 
-#socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*")
 #message_queue = queue.Queue() # Queue to store incoming messages
 
 @app.route("/")
@@ -147,8 +154,10 @@ def get_messages():
 
 @app.route("/control", methods=["POST"])
 def control():
+   
     data = request.get_json() or {}
     action = data.get("action")
+    logger.debug(f"Received control command {action}")
     # Handle actions: forward, back, left, right
     # Replace the following with your actual control logic
     # Map actions to motor speeds
@@ -164,21 +173,21 @@ def control():
     elif action == "right":
         left_speed = 0.3
         right_speed = -0.3
+    elif action == "stop":
+        left_speed = 0.0
+        right_speed = 0.0
     else:
         return {"error": f"Unknown action: {action}"}, 400
 
     # Send command to BOSS
-    answer = orover.send(
-        socket,
-        src=orover.controller.remote_interface,       # Who is sending
-        reason=orover.cmd.set_motor_speed,      # Must be a command enum (2000-range)
-        body={"left_speed": left_speed, "right_speed": right_speed}
-    )
+    answer = p.send_event(src=orover.controller.remote_interface,
+                            reason=orover.cmd.set_motor_speed,   
+                            body={"left_speed": left_speed, "right_speed": right_speed})
 
-    if answer:
-        print(f"Boss told me {answer}")
+    #if answer:
+    #    print(f"Boss told me {answer}")
 
-    return jsonify({"status": "unknown action"}), 400
+    return jsonify({"status": answer}), 200
 
     # Example: small temp/voltage drift to show changes
     #state["temperature"] += 0.01
@@ -187,16 +196,17 @@ def control():
     #return jsonify({"status": "ok", "action": action, "state": state})
 
 
-@app.route("/status")
-def status():
+#@app.route("/status")
+#def status():
+#    global state
     # Return current values for frontend to display
-    return jsonify({
-        "temperature": round(state["temperature"], 2),
-        "speed": round(state["speed"], 2),
-        "angle": round(state["angle"], 2),
-        "voltage": round(state["voltage"], 2)
-    })
-
+    #return jsonify({
+    #    "temperature": round(state["temperature"], 2),
+    #    "speed": round(state["speed"], 2),
+    #    "angle": round(state["angle"], 2),
+    #    "voltage": round(state["voltage"], 2)
+    #})
+#    return {}
 
 @app.route("/readroute", methods=["POST"])
 def readroute():
@@ -236,5 +246,6 @@ def route():
 if __name__ == "__main__":
    
     p.logger.info(f"Starting Flask app with debug={config.getboolean('app','debug',fallback=True)}, host={config.get('app','host',fallback='localhost')}, port={config.getint('app','port',fallback=5000)}")
-    #socketio.run(app)
-    app.run(debug=True,host="0.0.0.0",port=5000)
+    socketio.run(app, host="0.0.0.0", port=5000)
+
+    #app.run(debug=True,host="0.0.0.0",port=5000)

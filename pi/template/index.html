@@ -57,14 +57,21 @@
 	<button onclick="sendRoute()">📤 Send route</button>
   </div>
 
-<script src="/socket.io/socket.io.js"></script>
+<script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
 
 const socket = io()
 
-socket.on("telemetry", (data) => {
-    console.log("New telemetry:", data)
-})
+socket.on("connect", () => {
+            console.log("Connected to server");
+        });
+
+socket.on("battery_state", (data) => {
+            console.log("Received:", data);
+
+    document.getElementById("voltage").textContent =
+                data.voltage.toFixed(2);
+        });
 
 async function sendAction(action) {
   try {
@@ -86,17 +93,17 @@ async function sendAction(action) {
   }
 }
 
-async function updateStatus() {
-  try {
-    const res = await fetch('/status');
-    if (!res.ok) return;
-    const j = await res.json();
-    document.getElementById('temperature').textContent = j.temperature;
-    document.getElementById('speed').textContent = j.speed;
-    document.getElementById('angle').textContent = j.angle;
-    document.getElementById('voltage').textContent = j.voltage;
-  } catch (e) { console.error(e); }
-}
+//async function updateStatus() {
+//  try {
+//    const res = await fetch('/status');
+//    if (!res.ok) return;
+//    const j = await res.json();
+    //document.getElementById('temperature').textContent = j.temperature;
+    //document.getElementById('speed').textContent = j.speed;
+    //document.getElementById('angle').textContent = j.angle;
+    //document.getElementById('voltage').textContent = j.voltage;
+//  } catch (e) { console.error(e); }
+//}
 
 let route = [];
 
@@ -186,20 +193,20 @@ const intervals = {};   // store interval per action
 const INTERVAL_MS = 100; // faster = more responsive stop
 
 function startRepeating(action) {
-    if (!intervals[action]) {
+    //if (!intervals[action]) {
         sendAction(action); // immediate first command
-        intervals[action] = setInterval(() => {
-            sendAction(action);
-        }, INTERVAL_MS);
-    }
+     //   intervals[action] = setInterval(() => {
+    //        sendAction(action);
+   //     }, INTERVAL_MS);
+ //   }
 }
 
 function stopRepeating(action) {
-    if (intervals[action]) {
-        clearInterval(intervals[action]);
-        delete intervals[action];
+  //  if (intervals[action]) {
+  //      clearInterval(intervals[action]);
+  //      delete intervals[action];
         sendAction('stop');
-    }
+  //  }
 }
 
 function bindButton(buttonId) {
@@ -224,8 +231,9 @@ function bindButton(buttonId) {
 
 
 // Poll status every second
-setInterval(updateStatus, 1000);
-updateStatus();
+// replaced by socket updates, but keep function for manual refresh or fallback
+//setInterval(updateStatus, 1000);
+//updateStatus();
 
 </script>
 </body>

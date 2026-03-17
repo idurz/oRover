@@ -65,9 +65,9 @@ class lifecycle_stage(IntEnum):
 @unique
 class power_source(IntEnum):
     """Robot power sources enumeration."""
-    battery                            =  300 # Battery power source, providing energy for mobility and operations
-    mains                              =  301 # Mains power source, for stationary operation or charging
-    solar                              =  302 # Solar power source, utilizing solar panels for energy generation
+    onbattery                            =  300 # Battery power source, providing energy for mobility and operations
+    onmains                              =  301 # Mains power source, for stationary operation or charging
+    onsolar                              =  302 # Solar power source, utilizing solar panels for energy generation
 
 @unique
 class health_status(IntEnum):

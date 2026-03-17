@@ -69,7 +69,16 @@ class handler:
 
     # Pan-tilt Control {"T":133,"X":45,"Y":45,"SPD":0,"ACC":0} If the product is installed with a pan-tilt, it can be controlled 
 
-
+    def cmd_set_motor_speed(self, message):
+        # Handle motor speed command
+        u.logger.debug(f"cmd_set_motor_speed -> {message}") #{"T":1,"L":,"R":}
+        body = message.get('body', {})
+        if not "left_speed" in body or not "right_speed" in body:
+            u.logger.warning(f"Message {message['id']} received without left_speed or right_speed parameter in body")
+            return False
+        # body={"left_speed": left_speed, "right_speed": right_speed})
+        s = json.dumps({"T":1,"L":body.get("left_speed"),"R":body.get("right_speed")})
+        return s    
 
 class base(baseprocess):
 

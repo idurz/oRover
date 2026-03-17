@@ -61,13 +61,7 @@ class handler:
         exit(0)
 
 
-    def cmd_set_motor_speed(self,message):
-        source = orover.get_name(message.get('src'))
-        print(f"BOSS: in actuator_motor_wheels {source}")
-        body = message.get('body', {})
-        if not "left_speed" in body:
-            return f"message {message['id']} received without left_speed parameter in body"    
-        return
+    
     
 
 class base(baseprocess):
