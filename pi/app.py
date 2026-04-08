@@ -1,3 +1,9 @@
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
+"""  o R o v e r  Object Recognition and Versatile Exploration Robot
+     License      MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
+     Description  Web server for oRover, for manual control and monitoring
+"""
 from asyncio.log import logger
 
 from flask import Flask, render_template, jsonify, request
@@ -39,23 +45,24 @@ class handler:
 
         if "me" in msg and "ts" in msg:
            # store name and timestamp of last heartbeat for each script
+           socketio.emit(f"heartbeat", {msg["me"]: msg["ts"]})
            heartbeats[msg["me"]] = msg["ts"]
            p.logger.debug(f"Stored heartbeat from {msg['me']} at {msg['ts']}")
         return True
     
     def state_battery(self, msg):
-        # Example handler for battery state messages, expects body to contain "voltage" field
+        # H§andler for battery state messages, expects body to contain "voltage" field
         voltage = msg.get("body", {}).get("voltage")
         if voltage is not None:
             p.logger.info(f"Battery voltage: {voltage} V")
             socketio.emit("battery_state", {"voltage": voltage})
             return True
         else:
-            p.logger.warning("Received battery state message without voltage field")
+            p.logger.warning(f"Message {msg.get('id')} received battery state message without voltage field")
             return False
         
     def state_imu(self, msg):
-        # Example handler for IMU state messages, expects body to contain "heading", "pitch", and "roll" fields
+        # Handler for IMU state messages, expects body to contain "heading", "pitch", and "roll" fields
         heading = msg.get("body", {}).get("heading")
         pitch = msg.get("body", {}).get("pitch")
         roll = msg.get("body", {}).get("roll")
@@ -64,7 +71,7 @@ class handler:
             socketio.emit("imu_state", {"heading": heading, "pitch": pitch, "roll": roll})
             return True
         else:
-            p.logger.warning("Received IMU state message without required fields")
+            p.logger.warning(f"Message {msg.get('id')} received IMU state message without required fields")
             return False
     
     

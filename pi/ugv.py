@@ -203,7 +203,7 @@ def serial_data_received(msg):
 #### Main execution starts here ####
 if __name__ == "__main__":
     h = handler() # Instantiate the handler class, which contains the message handlers for the BOSS server
-    u = base(handler=h,dothreading=False) # Instantiate the base class, which contains the main loop and message handling logic for the BOSS server
+    u = base(handler=h,threadingsubsocket=False) # Instantiate the base class, which contains the main loop and message handling logic for the BOSS server
  
     serial_dev = u.config.get("serial", "port", fallback="/dev/ttyUSB0")
     serial_baud = u.config.getint("serial", "baudrate", fallback=115200)

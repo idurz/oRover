@@ -60,7 +60,7 @@ class lifecycle_stage(IntEnum):
     """Robot lifecycle stages enumeration."""
     startup                            =  200 # Startup stage, initializing systems and preparing for operation
     running                            =  201 # Running stage, normal operation and task execution
-    shutdown                           =  202 # Shutdown stage, safely powering down systems and preparing for transport or storage
+    shuttingdown                       =  202 # Shutdown stage, safely powering down systems and preparing for transport or storage
 
 @unique
 class power_source(IntEnum):
@@ -103,6 +103,7 @@ class origin(IntEnum):
     orover_hcsr04                      = 1504
     orover_ugv                         = 1505
     orover_app                         = 1506
+    orover_stopper                     = 1507   
     orover_user1                       = 1511
     orover_user2                       = 1512
     orover_user3                       = 1513

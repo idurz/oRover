@@ -1,117 +1,96 @@
 # Configuration of the system
 
-## background
-The launcher takes care of starting all other components. For that it needs to know which scripts are available in the system. It reads a configuration file and decides on actions. The configuration file is a text-readable file with sections it. Each section contains parameters for parts of the system.
+## Background
+`launcher.py` starts oRover components based on a shared INI configuration file.
+By default this file is `config.ini` in the working directory.
 
-## example
-A configuration file looks like this:
-
-```
-[event]
-type = campfire
-place = outdoor
-
-[time]
-saturday = 19:00-21:00
-```
-
-The configuration example above could describe the type of event which will happen on saturday's between 19:00-21:00.
-
-## location
-If no parameter is given the launcher expects a `config.ini` file in its working directory. If you decide to use another file, use the `--config=<anotherfile.ini>` parameter, more info on the (launcher)[launcher.md] section.
-
-## how to
-This same configuration file as used by the launcher is passed as parameter to all other script. Each script should handle reading that file and gettings is parameter from there. Use the python libraries (configparser)[https://docs.python.org/3/library/configparser.html] and (argparse)[https://docs.python.org/3/library/argparse.html] for that.
-
-Default code (used in oroverlib.py) as shown below could help you forward:
+You can override the file path with:
 
 ```
-import configparser
-import argparse
-
-# Check if config file is given as argument, otherwise use default
-parser = argparse.ArgumentParser(description="oRover startup script"
-                                ,prog="python3 launcher.py")
-parser.add_argument("--config",type=str,required=False,default="config.ini"
-                   ,help="Path to configuration file (default: config.ini)")
-                   
-args = parser.parse_args()
-
-# Read configuration from config.ini file
-config = None   
-if not os.path.isfile(args.config):
-    sys.exit(f"Configuration file {args.config} does not exist")
-
-config = configparser.ConfigParser() 
-config.read(args.config)
-
-# Using example parameter from above
-next_event_type = config.get("event","type",fallback="nothing planned")
-print(f"Please go to {next_event_type}")
+--config=<path-to-config.ini>
 ```
 
-## Items in configuration file
+See [launcher.md](launcher.md).
 
-**All lines have the format `<name> = <content>`**
+## Reading config in scripts
+Every process should accept `--config` and read values from that file.
+Python standard libraries to use:
+- [configparser](https://docs.python.org/3/library/configparser.html)
+- [argparse](https://docs.python.org/3/library/argparse.html)
+
+## Format
+Each section contains key/value pairs in the form:
+
+```
+name = value
+```
+
+## Sections used by oRover
 
 ### Section [orover]
-| name              | default value    | description |
-|-------------------|------------------|-------------|
-| python_exec       | python3          | Location/path of used python program |
-| heartbeat_interval| 2                | Interval in seconds between heartbeat messages. Put `None` to stop sending heartbeat signals |
-| loglevel          | error            | Determines level of messages to be logged. Can be any of `debug`, `info`, `warning` or `error`,`critical`|
-| logfile           | orover.log       | path/name used by oRovers FileHandler for storing system messages. If loglevel (above) is `none` the file will not be used |
-| logformat         | %(asctime)s %(name)s %(levelname)s: %(message)s | logformat voor orover logmessages. See also [python doc](https://docs.python.org/3/howto/logging.html#changing-the-format-of-displayed-messages) |
-| logdatefmt        | %Y-%m-%d %H:%M:%S | datetime format used in logfiles. See also above and [python doc](https://docs.python.org/3/howto/logging.html#displaying-the-date-time-in-messages) |
-
-
+| name | default | description |
+|---|---|---|
+| python_exec | python3 | Python executable used by launcher |
+| heartbeat_interval | 10 | Interval (seconds) between heartbeat messages; `0` disables heartbeat |
+| loglevel | DEBUG | Log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
+| logfile | orover.log | Log file path/name |
+| logformat | %(asctime)s %(name)-8s %(levelname)-9s %(message)s | Log format string |
+| logdatefmt | %Y-%m-%d %H:%M:%S | Date format used in logs |
 
 ### Section [app]
-| name              | default value    | description |
-|-------------------|------------------|-------------|
-| name              | orover           | Flask app name used when constructing the (Flask)[https://flask.palletsprojects.com/en/stable/] web app |
-| static_folder     | ./static         | Override Flask's static (e.g. pictures etc) directories |
-| template_folder   | ./template       | Override Flask's template (e.g. html, js) directories |
-| debug             | False            | Boolean for Flask debug mode |
-| host              | localhost        | Controls what address the development server listens to |
+| name | default | description |
+|---|---|---|
+| static_folder | static | Flask static folder |
+| template_folder | template | Flask template folder |
+| debug | True | Flask debug mode |
+| host | 0.0.0.0 | Flask bind address |
+| port | 5000 | Flask bind port |
+| secret_key | (set in config) | Flask secret key |
 
 ### Section [scripts]
-| name              | default value    | description |
-|-------------------|------------------|-------------|
-| 'acronym'         | 'none'           | filename of a python script which should be started by the launcher. path/filename should end in `py`. Acronym should be a string in which the user recognizes the script. This name is shown on the "PS" command as `orover:acronym`. The acronym should be max 8 characters to be fully shown on the PS command | 
+Defines scripts started by launcher.
 
-Example `boss = boss.py`
+Example:
+
+```
+[scripts]
+logger = logserver.py
+eventbus = eventbus.py
+boss = boss.py
+ugv = ugv.py
+webrover = app.py
+```
 
 ### Section [eventbus]
-| name              | default value    | description |
-|-------------------|------------------|-------------|
-| client_sub_socket | tcp://localhost:5555 | ZMQ bind address for clients wanting to receive messages |
-| client_pub_socket | tcp://localhost:5556 | ZMQ bind address for clients wanting to publish messages |
-| bus_xsub_socket   | ... |ZMQ bind address for eventbus relay receiving messages |
-| bus_xpub_socket   | ..         |ZMQ bind address for eventbus relay publishing messages |
+| name | default | description |
+|---|---|---|
+| client_pub_socket | tcp://localhost:5556 | Endpoint where bus clients publish |
+| client_sub_socket | tcp://localhost:5555 | Endpoint where bus clients subscribe |
+| bus_xsub_socket | tcp://localhost:5556 | Eventbus XSUB connect target |
+| bus_xpub_socket | tcp://*:5555 | Eventbus XPUB bind target |
 
+See [eventbus.md](eventbus.md).
 
-client_pub_socket = tcp://localhost:5556
-client_sub_socket = tcp://localhost:5555
-### Section [ugv]
-| name              | default value    | description |
-|-------------------|------------------|-------------|
-| port              | /dev/serial0     | serial port used for communication between ugv script and (driverboard)[driverboard.md] |
-| baudrate          | 115200           | baudrate used for serial communication between ugv script and (driverboard)[driverboard.md] |
+### Section [serial]
+| name | default | description |
+|---|---|---|
+| port | /dev/serial0 | Serial device used by `ugv.py` |
+| baudrate | 115200 | Serial speed |
 
 ### Section [powercontrol]
-| name              | default value    | description |
-|-------------------|------------------|-------------|
-| pin               | 4                | Pin number where the powercontrol detection is connected. See (power)[power.md] |
-| sleep_time        | 2.0              | Seconds to wait after the signal pin dropped to avoid glitches in the system |
+| name | default | description |
+|---|---|---|
+| pin | 4 | GPIO pin (BCM numbering) for power-loss detect |
+| sleep_time | 2.0 | Debounce wait (seconds) after signal drop |
+
+See [power.md](power.md).
 
 ### Section [hcsr04]
-| name              | default value    | description |
-|-------------------|------------------|-------------|
-| sensor'x'         | 'none'           | comma-separated triple `name, triggerpin, echopin` used to enumerate sensors and GPIO pins |
-| min_obj_distance  | 20.0             | distance threshold (cm) to trigger an `object_detected` event to boss |
-| polling_interval  | 0.5              | Interval in seconds between polling each configured sensor |
+| name | default | description |
+|---|---|---|
+| sensor1..sensorN | none | `name, triggerpin, echopin` sensor definition |
+| min_obj_distance | 20.0 | Distance threshold (cm) for object-detected event |
+| polling_interval | 0.5 | Poll interval per sensor (seconds) |
 
-Sensor numbers should start with 1 and numbered in sequence. The sensor name used should be known to the system in the (enumeration)[enumeration.md]. Pin numbers used for the hardware connection are in BCM format. Reusing pins is not supported.
-
-Example `sensor1 = sensor_ultrasonic_front, 17, 27`
+Sensor pins use BCM numbering. Sensor names should match known values from
+[enumeration.md](enumeration.md).

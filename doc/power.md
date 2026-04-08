@@ -1,29 +1,34 @@
 # Power Control
 
-If you hit the power button, the ESP will loose power directly. Since the microcontroller is stateless that is OK. 
-For the Raspberry which is used as host controlelr thats a different piece of cake. This Linux machine wants to be 
-shutdown correctly to prevent data loss issues on the memory card. The below shutdown circuit feeds GPIO4 with a 
-logical True. When the ESP drops power, GPIO4 will go to False, which is a signal for the PI to directly start the
-shutdown sequence. The supercaps in the scheme will give the PI some time (seconds) to complete that task.
+When the power button is pressed, the ESP loses power immediately. That is fine
+for the microcontroller, but the Raspberry Pi host should be shut down cleanly
+to avoid SD-card corruption.
+
+The shutdown circuit drives GPIO4 high while power is present. When ESP power is
+removed, GPIO4 drops low and the Pi starts shutdown. Supercaps provide a short
+time window for Linux to complete shutdown.
 
 <img src="./pics/orover messaging-supercap.png" width="600" /> 
 
 ## Enable / disable
 
-Update the config.ini file. Under section [processes] add the following line
-::name:: = powercontrol.py
+Update `config.ini`. Under section `[scripts]` add:
 
-name can be any string, but suggest to user "powercontrol" or something similair.
-After the change restart the oRover system.
+```
+powercontrol = powercontrol.py
+```
 
-If you want to disable the powercontrol script, simply remove the line.
+The key name can be any descriptive string, but `powercontrol` is recommended.
+After updating config, restart oRover.
+
+To disable power control, remove (or comment out) the line in `[scripts]`.
 
 ## Parameters
-Add the section [powercontrol] if not present in the file.
+Add section `[powercontrol]` if it does not exist.
 
-The scripts accepts the following parameters
+The script accepts these parameters:
 
 | Param | Description |
 |-------|-------------|
-|pin = X| Pin number where the shutdown circuit is connected. Use BCM pin numbering. Default pin = 4 |
-|sleep_time = X|Float, niumber of seconds to wait after first pull down of pin to prevent false signals. Default 2.0 seconds|
+|pin = X| GPIO pin where shutdown detection is connected (BCM numbering). Default: `4` |
+|sleep_time = X| Seconds to wait after first low signal to filter glitches. Default: `2.0` |

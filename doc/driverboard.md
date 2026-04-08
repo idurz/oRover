@@ -52,20 +52,4 @@ Avaible:
 
 ## Software
 
-See also [JSON Commands](https://www.waveshare.com/wiki/UGV01#JSON_Command_Set)
-
-|Command|JSON syntax|Description                                                  |
-|-------|-----------|--------|
-|Wheel speed control| {"T":1,"L":<speed>,"R":<speed>}|<speed> range -0.5 ~ +0.5 for right and left wheel. Unit m/s|
-|PWM motor control  |{"T":11,"L":<range>,"R":<range>}|<range> range -255 ~ +255. Suggested is to use this command only for debugging. For speed control you should use "Wheel speed control" above|
-|ROS Control        |{"T":13,"X":<velocity>,"Z":<rad>}|X is the velocity in m/s and the Z value is the steering angular velocity in rad/s.|
-|Setting Motor PID  |{"T":2,"P":<val>,"I":<val>,"D":<val>,"L":<val>}|The three values of P, I and D correspond to proportional, integral and differential coefficients respectively, and the value of L is the interface reserved for Windup Limits, which is not available for the default PID controller used in UGV01 at present, and we have reserved this interface to facilitate the replacement of other PID controllers by users.|
-|OLED Screen Setting|{"T":3,"lineNum":<nr>,"Text":"putYourTextHere"}|OLED screen display content settings, lineNum parameter for the line settings, can be: 0, 1, 2, 3, a total of 4 lines of content can be displayed. Each time you set a line of content, the new content will not affect the other lines of content displayed but will replace the original content before this line. The Text parameter is for the content setting where you can enter text that will be displayed on the corresponding line. After using this command, the OLED screen will not display the robot information, and display the content that the command lets it display.|
-|Restore OLED Screen|{"T":-3}|When the command type is -3, the OLED screen will be restored to the initial status, and the robot information will be displayed.|
-|Retrieve IMU Data|{"T":126}|Used to obtain IMU information, including heading angle, geomagnetic field, acceleration, attitude, temperature, etc.|
-|Retrieve Chassis Information Feedback|{"T":130,"cmd":<x>}|Serial Port Continuous Feedback|x=0 turn off (default),x=1 (turn on). When this function is not enabled, the chassis information feedback is realized through a question-and-answer method, and the above CMD_BASE_FEEDBACK and so on are used to get the chassis information feedback. When this function is enabled, the chassis can continuously feedback information, and not need to query through the host, suitable for the ROS system.|
-|Serial Port Echo Switch|{"T":143,"cmd":<x>}|<x>=0 off, <x>=1 on. When turned on, all the commands you send to the slave will appear in the serial port feedback.|
-|IO4 IO5 Control|{"T":132,"IO4":<val>,"IO5":,<val>}|For setting the PWM of IO4 and IO5.|
-|External Module Models|{"T":4,"cmd":<x>}|x=0: Null - 1: RoArm-M2 - 3: Gimbal|
-|Pan-tilt Control|{"T":133,"X":45,"Y":45,"SPD":0,"ACC":0}|If the product is installed with a pan-tilt, it can be controlled by this command. The X value is the horizontal angle, the positive value is to the left, and the negative value is to the right. The Y value is the vertical angle, the positive value is up, and the negative value is down.|
-|Get Dev Info|{"T":405}|Request device info on ip address, boot mode, rssi, wifi STA and password etc|
+See [Command set](commandset.md)

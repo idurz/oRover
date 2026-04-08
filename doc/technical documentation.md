@@ -76,6 +76,8 @@ Follow the blue links in the table for the descriptions of the components:
 |oRover|[event bus](eventbus)            |Event bus script which act as central message server                           |
 |oRover|[enumeration](enumeration)       |Enumeration of commands, states events and other important message parts       |
 |oRover|[robot controller](boss_server)  |BOSS of oRover which decides on actions based on events                        |
+|oRover|[stop helper](stop)              |One-shot helper script publishing `cmd.shutdown` to request system shutdown    |
+|oRover|[enum uniqueness test](test_enum_name_uniqueness) |Regression test that detects duplicate enum member names                        |
 |option|[mqtt connector](mqtt)           |Optional MQTT connector script translating event buss messages to MQTT         |
 |option|[web portal](web)                |Web portal for manual control of the oRover system                             |
 |option|[powercontrol](power)            |Shutdown control program to enable delayed power down                          |

@@ -4,7 +4,7 @@
 
 The UGV interface is a critical component that bridges the gap between high-level commands (e.g., from a web interface 
 or controller) and low-level hardware interactions (e.g., motor control, sensor readings) via the [driver board](driverboard). It subscribes to commands via ZeroMQ, 
-translates them into serial commands for the hardware, and publishes feedback back to ZeroMQ for other components to consume.
+translates them into [serial commands](commandset.md) for the hardware, and publishes feedback back to ZeroMQ for other components to consume.
 
 ## Setup
 

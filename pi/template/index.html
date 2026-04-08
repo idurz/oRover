@@ -1,46 +1,45 @@
 <!doctype html>
 <html>
-<head>
-  <meta charset="utf-8">
-  <title>Vehicle Control</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 24px; }
-    .controls { display:flex; gap:10px; margin-bottom:20px; }
-    .controls button { padding:12px 18px; font-size:16px; cursor:pointer; }
-    .status-grid { display:grid; grid-template-columns: repeat(4, 1fr); gap:12px; }
-    .status-box { border:1px solid #ccc; padding:16px; text-align:center; border-radius:6px; }
-    .label { color:#666; font-size:14px; }
-    .value { font-size:20px; font-weight:600; margin-top:6px; }
-  </style>
-</head>
-<body>
-  <h2>Vehicle Control Panel</h2>
 
-  <div class="controls">
-    <button id="fwdBtn" data-action="forward">Forward</button>
-    <button id="backBtn" data-action="back">Back</button>
-    <button id="leftBtn" data-action="left">Left</button>
-    <button id="rightBtn" data-action="right">Right</button>
-  </div>
+  <head>
+    <!--  o R o v e r  Object Recognition and Versatile Exploration Robot
+       License      MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
+       Description  oRover web interface for controlling the vehicle and monitoring status
+    -->
+       
+    <meta charset="utf-8">
+    <title>oRover Vehicle Control</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
 
-  <div class="status-grid">
-    <div class="status-box">
-      <div class="label">Temperature (°C)</div>
-      <div id="temperature" class="value">--</div>
+  <body>
+    <h2>Vehicle Control Panel</h2>
+
+    <div class="controls">
+      <button id="fwdBtn" data-action="forward">Forward</button>
+      <button id="backBtn" data-action="back">Back</button>
+      <button id="leftBtn" data-action="left">Left</button>
+      <button id="rightBtn" data-action="right">Right</button>
     </div>
-    <div class="status-box">
-      <div class="label">Speed (m/s)</div>
-      <div id="speed" class="value">--</div>
+
+    <div class="status-grid">
+      <div class="status-box">
+        <div class="label">Temperature (°C)</div>
+        <div id="temperature" class="value">--</div>
+      </div>
+      <div class="status-box">
+        <div class="label">Speed (m/s)</div>
+        <div id="speed" class="value">--</div>
+      </div>
+      <div class="status-box">
+        <div class="label">Angle (°)</div>
+        <div id="angle" class="value">--</div>
+      </div>
+      <div class="status-box">
+        <div class="label">Voltage (V)</div>
+        <div id="voltage" class="value">--</div>
+      </div>
     </div>
-    <div class="status-box">
-      <div class="label">Angle (°)</div>
-      <div id="angle" class="value">--</div>
-    </div>
-    <div class="status-box">
-      <div class="label">Voltage (V)</div>
-      <div id="voltage" class="value">--</div>
-    </div>
-  </div>
   
   <div class="status-box" style="margin-top:24px;">
     <h3>Input route</h3>
@@ -57,21 +56,27 @@
 	<button onclick="sendRoute()">📤 Send route</button>
   </div>
 
+
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
 
+// Socket.IO client setup
 const socket = io()
-
 socket.on("connect", () => {
-            console.log("Connected to server");
-        });
+  console.log("Connected to server");
+});
 
 socket.on("battery_state", (data) => {
-            console.log("Received:", data);
+  console.log("Received:", data);
+  document.getElementById("voltage").textContent = data.voltage.toFixed(2);
+});
 
-    document.getElementById("voltage").textContent =
-                data.voltage.toFixed(2);
-        });
+socket.on("heartbeat", (data) => {
+  console.log("Heartbeat:", data);
+  // Get the div called heartbeat.
+  // Then find in that div the div with the name from "me" and add the timestamp there
+  document.getElementById("voltage").textContent = data.voltage.toFixed(2);
+});
 
 async function sendAction(action) {
   try {

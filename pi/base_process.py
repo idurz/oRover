@@ -43,7 +43,7 @@ class handler:
 class baseprocess:
     # Base class for all processes, providing common functionality like event handling and heartbeat
 
-    def __init__(self,handler=None,dothreading=False):
+    def __init__(self,handler=None,threadingsubsocket=False):
         # Beam me up, Scotty! Initialize the process, read configuration, set up logging and ZMQ sockets, and prepare for message handling and heartbeat
 
         self.config, self.configfile = orover.readConfig(True)  # Read configuration from config.ini file
@@ -52,28 +52,31 @@ class baseprocess:
 
         self.logger = self.setlogger(self.config, self.myname)
         setproctitle.setproctitle(f"orover:{self.myname}")
-
+        msg = f"Starting process {self.myname} with PID {os.getpid()} using config file {self.configfile}"
         if self.logger is not None:
-            self.logger.info(f"{self.myname} started with PID {os.getpid()}")
-        print(f"{self.myname} started with PID {os.getpid()}")
+            self.logger.info(msg)
+        print(msg)
 
-        self.handler = handler # Instantiate the handler class, which contains the message handlers for the BOSS server
         self.running = True
         self.pause = False
 
         self.ctx = zmq.Context() # Create ZMQ context
         self.pub = self.create_pub_socket(self.ctx) # Create zmq PUB socket for event bus, connect to port
 
-        if not dothreading:
+        if not threadingsubsocket:
             self.sub = self.create_sub_socket(self.ctx) # Create zmq SUB socket for event bus, bind to port
         else:
             threading.Thread(target=self.zmq_threading_listener, daemon=True).start()
 
-
         self.dispatch = {}
         self.known_topics = []
+
+        self.handler = handler # Instantiate the handler class, which contains the message handlers for the BOSS server
         if self.handler is not None:
             self.fetchtopics()
+        else:
+            if self.logger is not None:
+                self.logger.warning(f"No handler class provided for {self.myname}, no message handlers will be registered") 
         
         # Start done, register signal handler for graceful shutdown and log the start of the process
         signal.signal(signal.SIGTERM, self.terminate)

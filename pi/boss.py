@@ -48,20 +48,7 @@ class handler:
         d = body.get('distance',0)
         # dummy action: print warning if object too close
         print(f"BOSS: Warning: object too close to sensor {sensor} distance {d} cm")
-        return True
-    
-    def cmd_shutdown(self,socket,message,context, logger):
-        print(f"Shutdown message {message}")
-        reason = message.get('body', {}).get('value', 'unknown')
-        print(f"BOSS: Shutdown requested, reason: {reason}")
-        socket.send(b"OK")
-        socket.close(linger=2500)
-        context.term()
-        logger.info('Finished')
-        exit(0)
-
-
-    
+        return True    
     
 
 class base(baseprocess):
