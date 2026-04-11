@@ -1,5 +1,72 @@
-2026-02-15 23:01:28,637 - root - INFO - Starting process logserver with command: python3 logserver.py --config=config.ini
-2026-02-15 23:01:28,641 - root - INFO - Starting process eventbus with command: python3 eventbus.py --config=config.ini
-2026-02-15 23:01:28,642 - root - INFO - Starting process boss with command: python3 boss.py --config=config.ini
-2026-02-15 23:01:28,642 - root - INFO - Starting process hcsr04 with command: python3 hcsr04.py --config=config.ini
-2026-02-15 23:01:28,643 - root - INFO - Laucher with PID 93739 started 4 processes, waiting for termination signal
+import sys
+import os
+import json
+import time
+import threading
+import subprocess
+import re
+
+def log(msg, level="INFO"):
+    print(f"[{time.strftime('%Y-%m-%d %H:%M:%S')}] {level} {msg}")
+
+def start_process(cmd, name):
+    log(f"Starting process {name} with command: {cmd}")
+    process = subprocess.Popen(cmd)
+    return process
+
+def stop_process(process):
+    log(f"Stopping process {process}")
+    process.terminate()
+    process.wait()
+
+def check_process(process):
+    return process.poll() is not None
+
+def main():
+    config_file = "config.ini"
+    if not os.path.exists(config_file):
+        log(f"Config file {config_file} not found")
+        return
+
+    config = json.load(open(config_file))
+    logserver_cmd = config["logserver"]
+    eventbus_cmd = config["eventbus"]
+    boss_cmd = config["boss"]
+    hcsr04_cmd = config["hcsr04"]
+
+    logserver_process = start_process(logserver_cmd, "logserver")
+    eventbus_process = start_process(eventbus_cmd, "eventbus")
+    boss_process = start_process(boss_cmd, "boss")
+    hcsr04_process = start_process(hcsr04_cmd, "hcsr04")
+
+    log(f"Laucher with PID {os.getpid()} started {len([logserver_process, eventbus_process, boss_process, hcsr04_process])} processes, waiting for termination signal")
+
+    def check_all_processes():
+        while True:
+            all_running = True
+            for process in [logserver_process, eventbus_process, boss_process, hcsr04_process]:
+                if not check_process(process):
+                    all_running = False
+                    break
+            if all_running:
+                log("All processes are running")
+            else:
+                log("Some processes are not running")
+            time.sleep(1)
+
+    def stop_all_processes():
+        stop_process(logserver_process)
+        stop_process(eventbus_process)
+        stop_process(boss_process)
+        stop_process(hcsr04_process)
+
+    def stop_all_processes_signal(signum, frame):
+        stop_all_processes()
+
+    signal.signal(signal.SIGINT, stop_all_processes_signal)
+    signal.signal(signal.SIGTERM, stop_all_processes_signal)
+
+    check_all_processes()
+
+if __name__ == "__main__":
+    main()

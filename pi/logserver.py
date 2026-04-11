@@ -33,6 +33,34 @@ class base(baseprocess):
     def setlogger(self,config,myname):
         pass # No need to set up a logger here, we will use the root logger for the logserver, and the socket handler will log to the appropriate logger based on the record name
 
+
+class EnsureGuidFilter(logging.Filter):
+    def filter(self, record):
+        if not hasattr(record, "guid") or not record.guid:
+            record.guid = "-"
+        return True
+
+
+def cleanup_old_logfiles(logdir, basename, max_count):
+    """Keep only the last max_count log files, delete older ones"""
+    import glob
+    
+    if not os.path.isdir(logdir):
+        return
+    
+    # Find all log files matching the pattern: basename_YYYYMMDDHHMMSS.log
+    pattern = os.path.join(logdir, f"{basename}_*.log")
+    logfiles = sorted(glob.glob(pattern))
+    
+    # Delete old files, keep only the last max_count
+    if len(logfiles) > max_count:
+        for old_file in logfiles[:-max_count]:
+            try:
+                os.remove(old_file)
+                print(f"Removed old logfile: {old_file}")
+            except OSError as e:
+                print(f"Failed to remove {old_file}: {e}")
+
     
 # This is based on the Python 3.11 standard library example for a socket-based logging receiver.
 class LogRecordStreamHandler(socketserver.StreamRequestHandler):
@@ -101,17 +129,27 @@ if __name__ == '__main__':
 
     b = base() # Create an instance of the base class to get config and logger
 
-    #config  = orover.readConfig()
-
-    logformat = b.config.get("orover", "logformat", raw=True, fallback="%(asctime)s %(name)-15s %(levelname)-8s %(message)s")
+    logdir = b.config.get("orover", "logdir", fallback="logs")
+    logformat = b.config.get("orover", "logformat", raw=True, fallback="%(asctime)s %(name)-15s %(levelname)-8s guid=%(guid)s %(message)s")
     datefmt   = b.config.get("orover", "logdatefmt", raw=True, fallback="%Y-%m-%d %H:%M:%S")
-    logfile  = b.config.get("orover", "logfile",    fallback="orover.log")
-
-    #Check if there is already a logfile, if so, rename it with a timestamp to avoid overwriting previous logs
-    if os.path.exists(logfile):
-        os.rename(logfile, f"{os.path.splitext(os.path.basename(logfile))[0]}_{b.log_timestamp()}.log")
+    logfile_basename = b.config.get("orover", "logfile", fallback="orover.log")
+    max_logfiles = b.config.getint("orover", "max_logfiles", fallback=10)
+    
+    # Create log directory if it doesn't exist
+    os.makedirs(logdir, exist_ok=True)
+    
+    # Construct full path with timestamp
+    basename = os.path.splitext(logfile_basename)[0]
+    logfile = os.path.join(logdir, f"{basename}_{b.log_timestamp()}.log")
     
     logging.basicConfig(format=logformat, datefmt=datefmt, filename=logfile)
+    
+    # Clean up old logfiles
+    cleanup_old_logfiles(logdir, basename, max_logfiles)
+    
+    root_logger = logging.getLogger()
+    for handler in root_logger.handlers:
+        handler.addFilter(EnsureGuidFilter())
 
     tcpserver = LogRecordSocketReceiver()
     tcpserver.serve_until_stopped()

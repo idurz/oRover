@@ -1,16 +1,5 @@
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
-"""  o R o v e r  Object Recognition and Versatile Exploration Robot
-     License      MIT License, Copyright (C) 2026 C v Kruijsdijk & P. Zengers
-     Description  Web server for oRover, for manual control and monitoring
-"""
-from asyncio.log import logger
-
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
-from ugv import *
-import csv
-import queue
 import oroverlib as orover
 from base_process import baseprocess, handler
 
@@ -45,24 +34,23 @@ class handler:
 
         if "me" in msg and "ts" in msg:
            # store name and timestamp of last heartbeat for each script
-           socketio.emit(f"heartbeat", {msg["me"]: msg["ts"]})
            heartbeats[msg["me"]] = msg["ts"]
            p.logger.debug(f"Stored heartbeat from {msg['me']} at {msg['ts']}")
         return True
     
     def state_battery(self, msg):
-        # H§andler for battery state messages, expects body to contain "voltage" field
+        # Example handler for battery state messages, expects body to contain "voltage" field
         voltage = msg.get("body", {}).get("voltage")
         if voltage is not None:
             p.logger.info(f"Battery voltage: {voltage} V")
             socketio.emit("battery_state", {"voltage": voltage})
             return True
         else:
-            p.logger.warning(f"Message {msg.get('id')} received battery state message without voltage field")
+            p.logger.warning("Received battery state message without voltage field")
             return False
         
     def state_imu(self, msg):
-        # Handler for IMU state messages, expects body to contain "heading", "pitch", and "roll" fields
+        # Example handler for IMU state messages, expects body to contain "heading", "pitch", and "roll" fields
         heading = msg.get("body", {}).get("heading")
         pitch = msg.get("body", {}).get("pitch")
         roll = msg.get("body", {}).get("roll")
@@ -71,7 +59,7 @@ class handler:
             socketio.emit("imu_state", {"heading": heading, "pitch": pitch, "roll": roll})
             return True
         else:
-            p.logger.warning(f"Message {msg.get('id')} received IMU state message without required fields")
+            p.logger.warning("Received IMU state message without required fields")
             return False
     
     
@@ -79,52 +67,28 @@ class base(baseprocess):
     pass
 
 
+
 def rx_commands():
-#    #open file and fill commands
-#    commands.clear()
-#    with open("commands.csv", "r") as file:
-#        reader = csv.DictReader(file)
-#        for row in reader:
-#            commands.append((float(row["distance"]), float(row["angle"])))
-#    ser = serial.Serial(UART_PORT, BAUDRATE, timeout=1)
-#    time.sleep(2)  # allow UART to settle
-
-    #execute commands
-#    for distance, angle in commands:
-#        print(f"Driving {distance} m")
-#        drive_straight(ser, distance)                       ombouwen naar socket
-
-#        time.sleep(0.5)
-
-#        print(f"Turning {angle} degrees")
- #       rotate(ser, angle)                                 ombouwen naar socket
-
+    # Placeholder for future command execution from CSV
     print("Done.")
-
 
 
 ###########################################################################
 # Web server
 ###########################################################################
-config = orover.readConfig() # read config and setup logging
-h = handler() # Instantiate the handler class, which contains the message handlers for the BOSS server
-p = base(handler=h,dothreading=True)
-          # WITH threading enabled for ZMQ listener
+p = base(handler=handler(),threadingsubsocket=True)  # WITH threading enabled for ZMQ listener
     
+config = p.config  # Use config from baseprocess instance
 app = Flask(p.getmodulename(config) 
            ,static_folder   = config.get("app","static_folder",   fallback="static")
            ,template_folder = config.get("app", "template_folder", fallback="template"))
-app.config['debug'] = config.get("app","debug", fallback="True") 
+app.config['debug'] = config.getboolean("app","debug", fallback=True) 
 app.config['host'] =  config.get("app","host", fallback="localhost")
 app.config['port'] = config.getint("app","port", fallback=5000)
 app.config['SECRET_KEY'] = config.get("app","secret_key", fallback="default_secret_key")
 
-commands = [] # globals
-
-# Need to change to socket io?
-
+commands = []  # globals
 socketio = SocketIO(app, cors_allowed_origins="*")
-#message_queue = queue.Queue() # Queue to store incoming messages
 
 @app.route("/")
 def index():

@@ -1,0 +1,26 @@
+#!/bin/bash
+# oRover Start Script
+# Starts the oRover launcher with the specified config file
+# Usage: ./start [config_file]
+# Example: ./start config.ini
+#          ./start /path/to/custom.ini
+
+CONFIG_FILE="${1:-config.ini}"
+
+# Change to script directory
+cd "$(dirname "$0")" || exit 1
+
+# Check if Python is available
+if ! command -v python3 &> /dev/null; then
+    echo "Error: python3 is not installed or not in PATH"
+    exit 1
+fi
+
+# Check if config file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: Configuration file not found: $CONFIG_FILE"
+    exit 1
+fi
+
+echo "Starting oRover launcher with config: $CONFIG_FILE"
+python3 launcher.py --config="$CONFIG_FILE"

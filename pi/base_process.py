@@ -15,9 +15,31 @@ import zmq
 import time
 import uuid
 import threading
+import contextvars
 import logging, logging.handlers
 import oroverlib as orover
 import setproctitle
+
+
+_log_guid = contextvars.ContextVar("log_guid", default="-")
+_log_record_factory_installed = False
+
+
+def _install_guid_log_record_factory():
+    global _log_record_factory_installed
+    if _log_record_factory_installed:
+        return
+
+    old_factory = logging.getLogRecordFactory()
+
+    def record_factory(*args, **kwargs):
+        record = old_factory(*args, **kwargs)
+        if not hasattr(record, "guid") or not record.guid:
+            record.guid = _log_guid.get()
+        return record
+
+    logging.setLogRecordFactory(record_factory)
+    _log_record_factory_installed = True
 
 class handler:
     """ Contains the handlers for messages. 
@@ -129,6 +151,7 @@ class baseprocess:
     
     def setlogger(self,config,myname):
         # Set up logging to send log messages to the boss process via a socket handler
+        _install_guid_log_record_factory()
         rootLogger = logging.getLogger()
         rootLogger.setLevel(logging.DEBUG)
         socketHandler = logging.handlers.SocketHandler('localhost',
@@ -145,6 +168,14 @@ class baseprocess:
             logger.setLevel(loglevel.upper())
     
         return logger
+
+
+    def set_log_guid(self, guid):
+        return _log_guid.set(guid if guid else "-")
+
+
+    def reset_log_guid(self, token):
+        _log_guid.reset(token)
  
 
     def create_pub_socket(self, ctx):
@@ -264,17 +295,21 @@ class baseprocess:
               ,"body": body_field
               } 
 
-        # create the topic string and JSON encode the message, then send to the bus
-        msgstring = self.mogrify(self.enum_to_name(reason), msg)
-        if self.logger is not None:
-            self.logger.debug(f"Sending event {json.dumps(msg)}")
+        token = self.set_log_guid(msg["id"])
 
         try:
+            # create the topic string and JSON encode the message, then send to the bus
+            msgstring = self.mogrify(self.enum_to_name(reason), msg)
+            if self.logger is not None:
+                self.logger.info(f"Publishing event {self.enum_to_name(reason)}")
+
             self.pub.send_string(msgstring)
         except Exception as e: 
             if self.logger is not None:
                 self.logger.error(f"Publishing ZMQ message failed with exception {e}") 
             return False
+        finally:
+            self.reset_log_guid(token)
 
         return True
 
@@ -302,12 +337,11 @@ class baseprocess:
         if message is None:
             return False
         
-        # print(f"Validating message {message} for required fields")
+        # Check that all required fields are present in the message
         for s in ["id","ts","src","me","host","prio","reason","body"]:
-            afp = (s in message)
-            if not afp:
-                break
-            return afp
+            if s not in message:
+                return False
+        return True
 
     
     def valid_uuid(self, id):
@@ -374,28 +408,33 @@ class baseprocess:
     def handle_message(self, topicmsg):
         # retrieve the topic and message from the received zmq message, and validate the message structure and content
         topic , msg = self.demogrify(topicmsg)
-        if not topic in self.known_topics:
-            # this is not an error since we might receive messages that are not relevant for this process, but log it for debugging purposes
-             return None
-        
-        if self.pause and topic != "cmd_resume":
-            self.debug(f"Process is paused, ignoring message {msg['id']} with topic {topic}")
-            return None
+        token = self.set_log_guid(msg.get("id") if isinstance(msg, dict) else "-")
 
-        if not self.valid_message(msg):
-            self.logger.error(f"Invalid message: {msg}")
-            return None   
-                
-        reason = msg['reason']
         try:
-            handler_routine = self.dispatch[reason]
-        except KeyError:
-            self.logger.error(f"Message : {msg['id']} discarded, no handler for reason {self.enum_to_name(reason)} available in {self.myname} server")
-            return None
-        
-        result = handler_routine(msg)
-        self.logger.debug(f"Message handled : {msg}, result: {result}")
-        return result
+            if not topic in self.known_topics:
+                # this is not an error since we might receive messages that are not relevant for this process, but log it for debugging purposes
+                 return None
+            
+            if self.pause and topic != "cmd_resume":
+                self.logger.debug(f"Process is paused, ignoring message {msg['id']} with topic {topic}")
+                return None
+
+            if not self.valid_message(msg):
+                self.logger.error(f"Invalid message: {msg}")
+                return None   
+                    
+            reason = msg['reason']
+            try:
+                handler_routine = self.dispatch[reason]
+            except KeyError:
+                self.logger.error(f"Message : {msg['id']} discarded, no handler for reason {self.enum_to_name(reason)} available in {self.myname} server")
+                return None
+            
+            result = handler_routine(msg)
+            self.logger.debug(f"Message handled : {msg}, result: {result}")
+            return result
+        finally:
+            self.reset_log_guid(token)
     
 
     def fetchtopics(self):
@@ -415,4 +454,6 @@ class baseprocess:
         while self.running:
             # read topic and message from the SUB socket, then handle the message
             topicmsg = self.sub.recv_string()
-            result = self.handle_message(topicmsg)
+            if topicmsg is None or topicmsg == "" or topicmsg is False or topicmsg is True:
+                continue
+            result = self.handle_message(topicmsg) 

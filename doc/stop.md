@@ -24,8 +24,13 @@ From the `pi` directory:
 python3 stop.py --config=config.ini
 ```
 
-If `--config` is omitted, the default `config.ini` in the working directory is
-used.
+Alternatively, use the convenient `stop` shell script:
+
+```bash
+./stop config.ini
+```
+
+See [quick-start.md](quick-start.md) for more details on the shell script wrappers.
 
 ## Dependencies
 - shared config loading through `oroverlib.readConfig()`

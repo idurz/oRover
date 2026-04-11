@@ -6,14 +6,15 @@
      Description  interface for UGV control (motor commands etc)
 """
 
-import uuid
-
 import oroverlib as orover
 from base_process import baseprocess
 import serial
 import time
 import zmq
 import json
+import threading
+
+
 
 class handler:
     """ Contains the handlers for UGV messages. Each handler takes a message as input and returns a result string. 
@@ -80,6 +81,8 @@ class handler:
         s = json.dumps({"T":1,"L":body.get("left_speed"),"R":body.get("right_speed")})
         return s    
 
+
+
 class base(baseprocess):
 
     # serial data handler, translates the serial data to a message and sends it to the bus
@@ -88,7 +91,7 @@ class base(baseprocess):
         # For example, if your serial data is in JSON format, you can do something like:
         try:
             msg = json.loads(data.decode())
-        except Exception as e:
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
             u.logger.debug(f"Failed to parse serial data: {data} with exception {e}")   
             return None
         
@@ -112,18 +115,19 @@ class base(baseprocess):
                     #serial.lock.acquire()
                     s = f"{result}\n"
 
-                    print(f"Writing to serial port: {s}")
+                    u.logger.debug(f"Writing to serial port: {s}")
                     u.serial_port.write(s.encode())
+                    u.logger.debug(f"Finished writing to serial port: {s}")
                     #serial.lock.release()
                 
             # Check for serial data regardless of zmq events, to ensure we don't miss any incoming data
             data = u.serial_port.read(1024)
             #print("UGV server looping, port read...")
             if data:
-                print(f"Received serial data: {data}")
+                u.logger.debug(f"Received serial data: {data}")
                 msg = self.handle_serial(data)
                 if msg:
-                    print(f"Publishing message from serial data: {msg}")  
+                    u.logger.debug(f"Publishing message from serial data: {msg}")  
                 self.pub.send_json(msg)
 
 
@@ -214,4 +218,10 @@ if __name__ == "__main__":
     u.poller = zmq.Poller()
     u.poller.register(u.sub, zmq.POLLIN)
 
-    u.run()
+    try:
+        u.run()
+    finally:
+        # Ensure serial port is closed on exit
+        if u.serial_port and u.serial_port.is_open:
+            u.serial_port.close()
+            u.logger.info("Serial port closed")

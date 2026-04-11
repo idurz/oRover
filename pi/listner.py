@@ -11,7 +11,7 @@ def demogrify(topicmsg):
      # Find first occurrence of '{' to separate topic and message, then JSON decode the message part
      try:
           topic, msgtxt = topicmsg.split(' ', 1)
-     except:
+     except ValueError:
           print(f"Received malformed message: >>{topicmsg}<<, unable to split topic and message")
           return None, None
         

@@ -71,6 +71,7 @@ Follow the blue links in the table for the descriptions of the components:
 |os    |[systemd](systemd)               |OS level systemd scheduler which stops/starts launcher, outside of oRover      |
 |oRover|[configuration](configuration)   |Summary of working and all items in the configuration file                     |
 |oRover|[launcher](launcher)             |Anchor points which starts and stops other scripts of the system               |
+|oRover|[quick-start](quick-start)       |Shell scripts for convenient system startup and shutdown                      |
 |oRover|[ugv controller](ugv)            |Actor scripts which translates BOSS commands to serial UGV board commands      |
 |oRover|[driver board](driverboard)      |The UGV system ESP microcontroller, sensors and motor actors                   |
 |oRover|[event bus](eventbus)            |Event bus script which act as central message server                           |
@@ -84,4 +85,40 @@ Follow the blue links in the table for the descriptions of the components:
 |user  |[service controller](controller) |One or more task controllers for e.g. vision, object recognition, path planning|
 |user  |[other actor](actor)             |One or more specific actors, e.g. grippers, docking                            |
 |user  |[sensor server](sensor)          |One or more sensor script, e.g. Lidar, ultrasonic, collision, temperature      |
+
+## Logging Architecture
+
+oRover uses a centralized socket-based logging system where all processes send log records to a central `logserver.py` that writes them to disk.
+
+### Structured Logging with GUID Correlation
+
+Starting from 2026-04-11, all log records include a `guid` field for message tracing:
+
+- **Each bus message** gets a unique UUID (`id` field) assigned when created by `send_event()` in [base_process.py](../pi/base_process.py)
+- **All log records** associated with that message carry the same `guid` value, allowing complete end-to-end tracing across processes
+- Log context is propagated automatically using Python's `contextvars`, so handlers can log related activity with the same guid
+- When a message is received via `handle_message()`, the incoming message guid becomes the logging context, ensuring all processing steps are grouped
+- Logs without an associated message show `guid=-` (null guid)
+
+Example log output:
+```
+2026-04-11 14:23:45 boss       INFO     guid=a1b2c3d4-e5f6-47g8-h9i0-j1k2l3m4n5o6 Handling motion command
+2026-04-11 14:23:45 ugv        DEBUG    guid=a1b2c3d4-e5f6-47g8-h9i0-j1k2l3m4n5o6 Setting motor speed to 50
+2026-04-11 14:23:46 boss       DEBUG    guid=a1b2c3d4-e5f6-47g8-h9i0-j1k2l3m4n5o6 Motion complete
+```
+
+This enables:
+- Rapid correlation of events across multiple processes during a single command flow
+- Debugging of asynchronous behavior without manually parsing log files
+- Better log filtering and analysis tools in the future
+
+### Log File Organization
+
+Log files are stored in a `logs/` directory (configurable via `logdir` in config.ini) with automatic rotation:
+
+- Each startup creates a new timestamped log file: `orover_YYYYMMDDHHMMSS.log`
+- The system automatically retains only the last N log files (default 10, configurable via `max_logfiles`)
+- Old log files are deleted to prevent unbounded disk usage
+- See [configuration.md](configuration.md) for details on `logdir` and `max_logfiles` parameters
+
 ---

@@ -118,4 +118,9 @@ if __name__ == "__main__":
     min_obj_distance = float(p.config.get('hcsr04','min_obj_distance',fallback=20.0))
     polling_interval = float(p.config.get('hcsr04','polling_interval',fallback=0.5))
 
-    p.loop(sensors, min_obj_distance, polling_interval) # Start the main loop to read sensors and send events
+    try:
+        p.loop(sensors, min_obj_distance, polling_interval) # Start the main loop to read sensors and send events
+    finally:
+        # Ensure GPIO is cleaned up on exit
+        GPIO.cleanup()
+        p.logger.info("GPIO cleaned up")

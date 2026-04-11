@@ -83,35 +83,19 @@ def shutdown_launcher():
     # Avoid long linger waits while shutting down sockets/context.
     try:
         b.pub.close(0)
-    except Exception:
+    except (zmq.error.ZMQError, AttributeError):
         pass
     try:
         b.sub.close(0)
-    except Exception:
+    except (zmq.error.ZMQError, AttributeError):
         pass
     try:
         b.ctx.term()
-    except Exception:
+    except zmq.error.ZMQError:
         pass
 
 
 started_processes = []
-
-# Check if all commands and events are defined in the DISPATCH dictionary of the servers
-def startup_checks(config):
-    # mising_dict = False
-    # for c in list(orover.cmd) + list(orover.event):
-    #      if not c in orover.DISPATCH:
-    #         msg = f"{c.name} Not defined in DISPATCH dictionary '{c.__class__.__name__}' of the servers"
-    #         b.logging.error(msg)
-    #         print(msg)  
-    #         mising_dict = True
-
-    # if mising_dict:
-    #     logging.error("Startup checks for DISPATCH dictionary failed, exiting") 
-    #     sys.exit("Startup checks for DISPATCH dictionary failed, exiting")
-        
-    return
 
 
 #### Main execution starts here ####

@@ -46,6 +46,11 @@ class handler:
             return False
        
         d = body.get('distance',0)
+        # Validate distance is positive
+        if d < 0:
+            p.logger.warning(f"Message {message['id']} discarded from sensor {sensor}: distance {d} is negative")
+            return False
+        
         # dummy action: print warning if object too close
         print(f"BOSS: Warning: object too close to sensor {sensor} distance {d} cm")
         return True    

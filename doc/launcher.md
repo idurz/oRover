@@ -50,6 +50,11 @@ boss.py
 ugv.py
 ```
 
+The `logserver.py` script should be listed first, as the other processes depend on it for logging.
+For details on logserver configuration and log file management, see [logserver.md](logserver.md).
+
+For convenient command-line startup and shutdown, see [quick-start.md](quick-start.md).
+
 **Examples**
 ```
 eventbus = eventbus.py

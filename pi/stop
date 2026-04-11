@@ -1,0 +1,26 @@
+#!/bin/bash
+# oRover Stop Script
+# Sends graceful shutdown command to the running oRover system
+# Usage: ./stop [config_file]
+# Example: ./stop config.ini
+#          ./stop /path/to/custom.ini
+
+CONFIG_FILE="${1:-config.ini}"
+
+# Change to script directory
+cd "$(dirname "$0")" || exit 1
+
+# Check if Python is available
+if ! command -v python3 &> /dev/null; then
+    echo "Error: python3 is not installed or not in PATH"
+    exit 1
+fi
+
+# Check if config file exists
+if [ ! -f "$CONFIG_FILE" ]; then
+    echo "Error: Configuration file not found: $CONFIG_FILE"
+    exit 1
+fi
+
+echo "Stopping oRover system with config: $CONFIG_FILE"
+python3 stop.py --config="$CONFIG_FILE"

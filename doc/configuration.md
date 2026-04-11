@@ -33,8 +33,10 @@ name = value
 | python_exec | python3 | Python executable used by launcher |
 | heartbeat_interval | 10 | Interval (seconds) between heartbeat messages; `0` disables heartbeat |
 | loglevel | DEBUG | Log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
-| logfile | orover.log | Log file path/name |
-| logformat | %(asctime)s %(name)-8s %(levelname)-9s %(message)s | Log format string |
+| logdir | logs | Directory where log files are stored |
+| logfile | orover.log | Log file basename (timestamp appended automatically) |
+| max_logfiles | 10 | Maximum number of log files to retain; older files are automatically deleted |
+| logformat | %(asctime)s %(name)-8s %(levelname)-9s guid=%(guid)s %(message)s | Log format string; includes guid for message tracing |
 | logdatefmt | %Y-%m-%d %H:%M:%S | Date format used in logs |
 
 ### Section [app]
