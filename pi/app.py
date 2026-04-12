@@ -36,6 +36,7 @@ class handler:
            # store name and timestamp of last heartbeat for each script
            heartbeats[msg["me"]] = msg["ts"]
            p.logger.debug(f"Stored heartbeat from {msg['me']} at {msg['ts']}")
+           socketio.emit("heartbeat", {"me": msg["me"], "timestamp": msg["ts"]})
         return True
     
     def state_battery(self, msg):
@@ -76,13 +77,19 @@ def rx_commands():
 ###########################################################################
 # Web server
 ###########################################################################
-p = base(handler=handler(),threadingsubsocket=True)  # WITH threading enabled for ZMQ listener
-    
-config = p.config  # Use config from baseprocess instance
-app = Flask(p.getmodulename(config) 
+
+# Read config and create Flask/SocketIO BEFORE starting the ZMQ listener thread
+# so that handlers can safely reference 'socketio' as soon as messages arrive.
+config, _ = orover.readConfig(name_requested=True)
+
+import os as _os, sys as _sys
+_script = _os.path.basename(_sys.argv[0])
+_app_name = next((name for name, path in config.items("scripts") if _script == _os.path.basename(path.strip())), _os.path.splitext(_script)[0]) if config.has_section("scripts") else _os.path.splitext(_script)[0]
+
+app = Flask(_app_name
            ,static_folder   = config.get("app","static_folder",   fallback="static")
            ,template_folder = config.get("app", "template_folder", fallback="template"))
-app.config['debug'] = config.getboolean("app","debug", fallback=True) 
+app.config['debug'] = config.getboolean("app","debug", fallback=True)
 app.config['host'] =  config.get("app","host", fallback="localhost")
 app.config['port'] = config.getint("app","port", fallback=5000)
 app.config['SECRET_KEY'] = config.get("app","secret_key", fallback="default_secret_key")
@@ -90,9 +97,13 @@ app.config['SECRET_KEY'] = config.get("app","secret_key", fallback="default_secr
 commands = []  # globals
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+# Now start the base process (which launches the ZMQ listener thread); socketio is defined above.
+p = base(handler=handler(),threadingsubsocket=True)  # WITH threading enabled for ZMQ listener
+
 @app.route("/")
 def index():
-    return render_template("index.html")
+    hb_interval = config.getint("orover", "heartbeat_interval", fallback=20)
+    return render_template("index.html", heartbeat_interval=hb_interval)
 
 
 # ---------------------------
@@ -128,7 +139,7 @@ def control():
    
     data = request.get_json() or {}
     action = data.get("action")
-    logger.debug(f"Received control command {action}")
+    p.logger.debug(f"Received control command {action}")
     # Handle actions: forward, back, left, right
     # Replace the following with your actual control logic
     # Map actions to motor speeds
@@ -215,8 +226,11 @@ def route():
 
 #### Main execution starts here ####
 if __name__ == "__main__":
-   
-    p.logger.info(f"Starting Flask app with debug={config.getboolean('app','debug',fallback=True)}, host={config.get('app','host',fallback='localhost')}, port={config.getint('app','port',fallback=5000)}")
-    socketio.run(app, host="0.0.0.0", port=5000)
+    debug_mode = config.getboolean('app', 'debug', fallback=True)
+    host = config.get('app', 'host', fallback='localhost')
+    port = config.getint('app', 'port', fallback=5000)
+
+    p.logger.info(f"Starting Flask app with debug={debug_mode}, host={host}, port={port}")
+    socketio.run(app, host=host, port=port, debug=debug_mode, use_reloader=False)
 
     #app.run(debug=True,host="0.0.0.0",port=5000)

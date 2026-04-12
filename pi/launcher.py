@@ -11,6 +11,8 @@ import sys
 import subprocess
 import signal
 import time
+import fcntl
+import atexit
 import oroverlib as orover
 from base_process import baseprocess, handler
 
@@ -83,27 +85,79 @@ def shutdown_launcher():
     # Avoid long linger waits while shutting down sockets/context.
     try:
         b.pub.close(0)
-    except (zmq.error.ZMQError, AttributeError):
+    except (AttributeError):
         pass
     try:
         b.sub.close(0)
-    except (zmq.error.ZMQError, AttributeError):
+    except (AttributeError):
         pass
     try:
         b.ctx.term()
-    except zmq.error.ZMQError:
+    except (AttributeError):
         pass
 
 
 started_processes = []
+_launcher_lock_fd = None
+
+
+def _release_launcher_lock():
+    global _launcher_lock_fd
+    if _launcher_lock_fd is None:
+        return
+    try:
+        fcntl.flock(_launcher_lock_fd, fcntl.LOCK_UN)
+    except OSError:
+        pass
+    try:
+        os.close(_launcher_lock_fd)
+    except OSError:
+        pass
+    _launcher_lock_fd = None
+
+
+def _acquire_launcher_lock():
+    """Acquire exclusive launcher lock; return (ok, existing_pid)."""
+    global _launcher_lock_fd
+    lockfile = "/tmp/orover_launcher.lock"
+
+    fd = os.open(lockfile, os.O_CREAT | os.O_RDWR, 0o644)
+    try:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        existing_pid = "unknown"
+        try:
+            os.lseek(fd, 0, os.SEEK_SET)
+            data = os.read(fd, 64).decode().strip()
+            if data:
+                existing_pid = data
+        except OSError:
+            pass
+        os.close(fd)
+        return False, existing_pid
+
+    os.ftruncate(fd, 0)
+    os.write(fd, str(os.getpid()).encode())
+    _launcher_lock_fd = fd
+    atexit.register(_release_launcher_lock)
+    return True, None
 
 
 #### Main execution starts here ####
 if __name__ == "__main__":
+    lock_ok, existing_pid = _acquire_launcher_lock()
+    if not lock_ok:
+        print(
+            "Another launcher instance is already running "
+            f"(PID: {existing_pid}). "
+            "Not starting a second launcher."
+        )
+        sys.exit(1)
+
     h = handler() # Instantiate the handler class, which contains the message handlers for the BOSS server
     b = base(handler=h) # Instantiate the base class, which contains the main loop and message handling logic for the BOSS server
 
-    startup_checks(b.config) # Do some startup checks for orover lib
+    #startup_checks(b.config) # Do some startup checks for orover lib
 
     # Get python path from config file, default to "python3" if not defined
     if b.config.has_option("orover", "python_exec"):

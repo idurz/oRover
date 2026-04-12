@@ -16,7 +16,7 @@ msg = "Requesting oRover to stop by stop.py"
 print(msg)
 p.logger.info(msg)
 
-p.send_event(src = orover.origin.stopper
+p.send_event(src = orover.origin.orover_stopper
             ,reason = orover.cmd.shutdown
             ,body = {"value": "requested by stop.py"}
             )

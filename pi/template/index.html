@@ -41,22 +41,54 @@
       </div>
     </div>
   
-  <div class="status-box" style="margin-top:24px;">
-    <h3>Input route</h3>
+    <div class="status-box" style="margin-top:24px;">
+      <h3>Input route</h3>
 
-    <div style="display:flex; gap:10px; margin-bottom:10px;">
-      <input id="afstandInput" type="number" placeholder="Distance" />
-      <input id="hoekInput" type="number" placeholder="angle (°)" />
-      <button onclick="addStep()">➕ Add</button>
+      <div style="display:flex; gap:10px; margin-bottom:10px;">
+        <input id="afstandInput" type="number" placeholder="Distance" />
+        <input id="hoekInput" type="number" placeholder="angle (°)" />
+        <button onclick="addStep()">➕ Add</button>
+      </div>
+
+      <ul id="routeList"></ul>
+
+      <button onclick="readRoute()">📤 Read route</button>
+	    <button onclick="sendRoute()">📤 Send route</button>
     </div>
 
-    <ul id="routeList"></ul>
+    <div class="system-info" style="margin-top:24px;">
+      <h3>System Information</h3>
 
-    <button onclick="readRoute()">📤 Read route</button>
-	<button onclick="sendRoute()">📤 Send route</button>
-  </div>
+      <div class="status-grid">
 
+        <div class="status-box">
+          <div class="label">Heartbeat</div>
+          <table id="heartbeat-table" style="width:100%; border-collapse:collapse;">
+            <thead>
+              <tr><th style="text-align:left;">Script</th><th style="text-align:left;">Last seen</th></tr>
+            </thead>
+            <tbody id="heartbeat"></tbody>
+          </table>
+        </div>
 
+        <div class="status-box">
+          <div class="label">Temperature (°C)</div>
+          <div id="temperature" class="value">--</div>
+        </div>
+
+        <div class="status-box">
+          <div class="label">Temperature (°C)</div>
+          <div id="temperature" class="value">--</div>
+        </div>
+
+      </div>
+
+      <ul id="routeList"></ul>
+
+      <button onclick="readRoute()">📤 Read route</button>
+	    <button onclick="sendRoute()">📤 Send route</button>
+    </div>
+</body>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
 
@@ -71,12 +103,37 @@ socket.on("battery_state", (data) => {
   document.getElementById("voltage").textContent = data.voltage.toFixed(2);
 });
 
+const HB_INTERVAL_MS = {{ heartbeat_interval }} * 1000;
+const HB_STALE_MS    = HB_INTERVAL_MS * 1.2;
+
 socket.on("heartbeat", (data) => {
-  console.log("Heartbeat:", data);
-  // Get the div called heartbeat.
-  // Then find in that div the div with the name from "me" and add the timestamp there
-  document.getElementById("voltage").textContent = data.voltage.toFixed(2);
+  const tbody = document.getElementById("heartbeat");
+  // Extract HH:MM:SS from ISO timestamp e.g. "2026-04-12T14:23:01.123456"
+  const ts = data.timestamp && data.timestamp.includes("T")
+    ? data.timestamp.split("T")[1].substring(0, 8)
+    : data.timestamp;
+  let row = tbody.querySelector(`tr[data-name="${data.me}"]`);
+  if (!row) {
+    row = document.createElement("tr");
+    row.dataset.name = data.me;
+    row.innerHTML = `<td style="text-align:left">${data.me}</td><td class="hb-ts"></td>`;
+    tbody.appendChild(row);
+  }
+  const tsCell = row.querySelector(".hb-ts");
+  tsCell.textContent = ts;
+  tsCell.style.color = "";
+  row.dataset.lastSeen = Date.now();
 });
+
+// Periodically mark timestamps red when no heartbeat received within interval * 1.2
+setInterval(() => {
+  const now = Date.now();
+  document.querySelectorAll("#heartbeat tr[data-last-seen]").forEach(row => {
+    const tsCell = row.querySelector(".hb-ts");
+    const age = now - Number(row.dataset.lastSeen);
+    tsCell.style.color = age > HB_STALE_MS ? "red" : "";
+  });
+}, 1000);
 
 async function sendAction(action) {
   try {
@@ -91,7 +148,7 @@ async function sendAction(action) {
 
     } else {
       // optionally update status immediately after action
-      updateStatus();
+      //updateStatus();
     }
   } catch (e) {
     console.error(e);

@@ -47,7 +47,11 @@ def log_proxy_message_ids():
 
           msg_id = msg.get("id")
           if msg_id is not None:
-               b.logger.debug(f"Event bus proxied message id={msg_id} topic={topic}")
+               token = b.set_log_guid(str(msg_id))
+               try:
+                    b.logger.debug(f"Event bus proxied message with topic {topic}")
+               finally:
+                    b.reset_log_guid(token)
 
 #### Main execution starts here ####
 

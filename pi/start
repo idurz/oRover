@@ -23,4 +23,4 @@ if [ ! -f "$CONFIG_FILE" ]; then
 fi
 
 echo "Starting oRover launcher with config: $CONFIG_FILE"
-python3 launcher.py --config="$CONFIG_FILE"
+python3 launcher.py --config="$CONFIG_FILE" & 

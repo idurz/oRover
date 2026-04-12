@@ -1,4 +1,94 @@
-# Changelog - oRover (as of 2026-04-11)
+# Changelog - oRover (as of 2026-04-12)
+
+## Update 2026-04-12 (session 2)
+
+### app.py — prevent double webserver startup
+**File Modified:** `pi/app.py`
+
+- Flask `debug=True` with `socketio.run()` caused two server processes (Werkzeug reloader pattern); fixed by passing `use_reloader=False`
+- Reordered initialization: `config`, `app`, and `socketio` are now created before `base(...)` so the ZMQ listener thread cannot fire `socketio` references before it is defined (was causing `NameError: name 'socketio' is not defined`)
+- Host, port and debug values now read from config instead of hardcoded
+
+### base_process.py — GUID visible in "Preparing to send event" log
+**File Modified:** `pi/base_process.py`
+
+- Message UUID is now allocated and log-context set at the very start of `send_event()`, before any logging or validation; all log lines (preparation, validation errors, publish) now share the same GUID
+- `reset_log_guid` guaranteed via `finally` on all return paths
+
+### eventbus.py — proxied messages logged with GUID
+**File Modified:** `pi/eventbus.py`
+
+- `log_proxy_message_ids()` now wraps the debug log call with `set_log_guid` / `reset_log_guid` so the event bus log entry carries the message GUID in the logfile
+
+### logserver.py + config.ini — remove `guid=` label from log format
+**Files Modified:** `pi/logserver.py`, `pi/config.ini`
+
+- Removed the literal `guid=` prefix from the logformat; GUID value still appears (or `-` when absent) but without the label
+
+### launcher.py — singleton guard
+**File Modified:** `pi/launcher.py`
+
+- Added `_acquire_launcher_lock()` using `fcntl.flock` on `/tmp/orover_launcher.lock`
+- Launcher exits gracefully with clear console message if another instance already holds the lock
+- PID of running instance is read from lock file and shown in the message
+- Lock released automatically on process exit via `atexit`
+
+### logserver.py — stable active logfile with startup rotation
+**File Modified:** `pi/logserver.py`
+
+- Active logfile always opened as the configured name (e.g. `logs/orover.log`)
+- On startup, any existing non-empty logfile is renamed to `stem_YYYYMMDDHHMMSS.ext` before opening the new active file
+- Cleanup pattern updated to match configured extension, not hardcoded `.log`
+
+### template/index.html — heartbeat table with staleness coloring
+**File Modified:** `pi/template/index.html`
+
+- Heartbeat section replaced with a two-column table (Script / Last seen)
+- New scripts are added as rows; existing rows update their timestamp in place
+- Timestamps shown as `HH:MM:SS` only
+- Script column is left-aligned
+- Timestamp turns red when no heartbeat received within `heartbeat_interval × 1.2` seconds; resets to normal when a fresh heartbeat arrives
+- `heartbeat_interval` injected from Flask/config at render time
+
+### app.py — pass heartbeat_interval to template
+**File Modified:** `pi/app.py`
+
+- `index()` route now passes `heartbeat_interval` from `[orover]` config section to `render_template` so the staleness threshold is always in sync with config
+
+---
+
+## Update 2026-04-12
+
+### Process Naming / setproctitle
+**File Modified:** `pi/base_process.py`
+
+- Fixed module name resolution to correctly map running script filename to the key in `[scripts]` from `config.ini`
+- Process title now consistently uses configured script key names (e.g. `orover:logger`, `orover:eventbus`) instead of filename fallbacks when mapping exists
+- Improved fallback behavior to use script stem from basename
+
+### Log File Startup Rotation Behavior
+**File Modified:** `pi/logserver.py`
+
+- Changed runtime logging target to always use the configured stable active filename (e.g. `logs/orover.log`)
+- Added startup rollover: if active logfile exists and is non-empty, it is renamed to timestamped archive format (`stem_YYYYMMDDHHMMSS.ext`) before opening a new active logfile
+- Updated cleanup pattern to match rotated files based on configured stem and extension
+
+### Launcher Singleton Protection
+**File Modified:** `pi/launcher.py`
+
+- Added single-instance guard using an exclusive lock file (`/tmp/orover_launcher.lock`)
+- Launcher now exits gracefully with a clear console message when another launcher instance is already running
+- Added lock release handling on process exit
+
+### Additional Repository Changes Present Today
+**Files Modified:** `pi/listner.py`, `pi/start`, `pi/stop.py`, `pi/launcher.py`
+
+- `pi/start` now launches `launcher.py` in background
+- `pi/stop.py` source enum was updated to `orover.origin.orover_stopper`
+- `pi/listner.py` gained config-driven endpoint/subscription handling and ignore-topic parsing
+- `pi/launcher.py` includes startup check adjustments and broader shutdown attribute-safe cleanup handling
+
+---
 
 ## Overview
 Major improvements to logging infrastructure, code quality, shell scripts for system control, and comprehensive documentation.

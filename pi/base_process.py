@@ -135,13 +135,13 @@ class baseprocess:
     def getmodulename(self, config):
         # Returns the name of the current module, based on the filename of the script, or the name defined in the config file if it matches the current 
         # script name. This allows for more flexible naming of processes in the config file
-        if sys.argv[0] in config.items('scripts'): # sys.argv[0] contains the name of the currently running script, no path and with ".py" extension.
-            print(f"Found script name {sys.argv[0]} in config, using corresponding name {config.get('scripts',sys.argv[0])} for logging")
-            for name, path in config.items('scripts'): # find item in config that matches the current script name and return the key (name) of that item
-                if sys.argv[0] == os.path.basename(path):
+        script_name = os.path.basename(sys.argv[0])
+        if config.has_section('scripts'):
+            for name, path in config.items('scripts'):  # Find the script entry that matches our current executable script.
+                if script_name == os.path.basename(path.strip()):
+                    print(f"Found script name {script_name} in config, using process name {name}")
                     return name
-            return "default"  # default name if not found in config
-        return sys.argv[0].split('.')[0]
+        return os.path.splitext(script_name)[0]
 
 
     def log_timestamp(self):
@@ -249,64 +249,65 @@ class baseprocess:
 
     def send_event(self, src, reason,body={}, prio=None):
         # Publish an event to the bus, with validation of fields and JSON body
-        if self.logger is not None:
-            # find src in enums for better logging, otherwise log the numeric value
-            src_name = self.enum_to_name(src)
-            reason_name = self.enum_to_name(reason) 
-            self.logger.debug(f"Preparing to send event with src {src_name}, reason {reason_name}, body {body} and prio {prio}")
-
-        if not isinstance (src,(orover.origin, orover.actuator, orover.controller)):
-            if self.logger is not None:
-                self.logger.error(f"Invalid 'src' field, must be known enum ({src})")
-            return False
-    
-        if not isinstance(reason, (orover.cmd, orover.state, orover.event)):
-            if self.logger is not None:
-                self.logger.error(f"Invalid 'reason' field must be known enum ({reason})")
-            return False
-
-        # check if body is valid json
-        body_field = body
-        if isinstance(body, str):
-            try:
-                body_field = json.loads(body)
-            except (json.JSONDecodeError, ValueError):
-                if self.logger is not None:
-                    self.logger.error(f"{body} is not valid JSON")
-                return False
-
-        # priority: accept an int or Priority member
-        if prio is None:
-            prio = orover.priority.normal
-            if not isinstance(prio,orover.priority):
-                if self.logger is not None:
-                    self.logger.error(f"Invalid 'prio' field must be known enum ({prio})")
-                return False    
-
-
-        # Construct the message to send to the boss
-        msg = {"id"  : str(uuid.uuid4())
-              ,"ts"  : datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
-              ,"src" : src
-              ,"me"  : self.myname
-              ,"host": os.uname().nodename
-              ,"prio": prio
-              ,"reason": reason
-              ,"body": body_field
-              } 
-
-        token = self.set_log_guid(msg["id"])
+        msg_id = str(uuid.uuid4())
+        token = self.set_log_guid(msg_id)
 
         try:
+            if self.logger is not None:
+                # find src in enums for better logging, otherwise log the numeric value
+                src_name = self.enum_to_name(src)
+                reason_name = self.enum_to_name(reason)
+                self.logger.debug(f"Preparing to send event with src {src_name}, reason {reason_name}, body {body} and prio {prio}")
+
+            if not isinstance (src,(orover.origin, orover.actuator, orover.controller)):
+                if self.logger is not None:
+                    self.logger.error(f"Invalid 'src' field, must be known enum ({src})")
+                return False
+
+            if not isinstance(reason, (orover.cmd, orover.state, orover.event)):
+                if self.logger is not None:
+                    self.logger.error(f"Invalid 'reason' field must be known enum ({reason})")
+                return False
+
+            # check if body is valid json
+            body_field = body
+            if isinstance(body, str):
+                try:
+                    body_field = json.loads(body)
+                except (json.JSONDecodeError, ValueError):
+                    if self.logger is not None:
+                        self.logger.error(f"{body} is not valid JSON")
+                    return False
+
+            # priority: accept an int or Priority member
+            if prio is None:
+                prio = orover.priority.normal
+                if not isinstance(prio,orover.priority):
+                    if self.logger is not None:
+                        self.logger.error(f"Invalid 'prio' field must be known enum ({prio})")
+                    return False
+
+
+            # Construct the message to send to the boss
+            msg = {"id"  : msg_id
+                  ,"ts"  : datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+                  ,"src" : src
+                  ,"me"  : self.myname
+                  ,"host": os.uname().nodename
+                  ,"prio": prio
+                  ,"reason": reason
+                  ,"body": body_field
+                  }
+
             # create the topic string and JSON encode the message, then send to the bus
             msgstring = self.mogrify(self.enum_to_name(reason), msg)
             if self.logger is not None:
                 self.logger.info(f"Publishing event {self.enum_to_name(reason)}")
 
             self.pub.send_string(msgstring)
-        except Exception as e: 
+        except Exception as e:
             if self.logger is not None:
-                self.logger.error(f"Publishing ZMQ message failed with exception {e}") 
+                self.logger.error(f"Publishing ZMQ message failed with exception {e}")
             return False
         finally:
             self.reset_log_guid(token)
@@ -390,15 +391,15 @@ class baseprocess:
             return False
         if not self.valid_datetime(msg['ts']):
             if self.logger is not None:
-                self.logger.error(f"Discarding message {msg['id']}: >>{msg['ts']}<< is not a valid datetime in format '%Y-%m-%dT%H:%M:%S.%f'")
+                self.logger.error(f"Discarding message >>{msg['ts']}<< is not a valid datetime in format '%Y-%m-%dT%H:%M:%S.%f'")
             return False
         if not self.valid_source(msg):
             if self.logger is not None:
-                self.logger.error(f"Discarding message {msg['id']}: >>{msg['src']}<< is not a valid origin")
+                self.logger.error(f"Discarding message >>{msg['src']}<< is not a valid origin")
             return False
         if not self.valid_priority(msg['prio']):
             if self.logger is not None:
-                self.logger.error(f"Discarding message {msg['id']}: >>{msg['prio']}<< is not a valid priority")
+                self.logger.error(f"Discarding message >>{msg['prio']}<< is not a valid priority")
             return False
         if self.logger is not None:
             self.logger.debug(f"Validated message {msg}")

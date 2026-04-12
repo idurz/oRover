@@ -41,15 +41,15 @@ class EnsureGuidFilter(logging.Filter):
         return True
 
 
-def cleanup_old_logfiles(logdir, basename, max_count):
+def cleanup_old_logfiles(logdir, stem, ext, max_count):
     """Keep only the last max_count log files, delete older ones"""
     import glob
     
     if not os.path.isdir(logdir):
         return
     
-    # Find all log files matching the pattern: basename_YYYYMMDDHHMMSS.log
-    pattern = os.path.join(logdir, f"{basename}_*.log")
+    # Find all rotated log files matching the pattern: stem_YYYYMMDDHHMMSS.ext
+    pattern = os.path.join(logdir, f"{stem}_*{ext}")
     logfiles = sorted(glob.glob(pattern))
     
     # Delete old files, keep only the last max_count
@@ -130,22 +130,31 @@ if __name__ == '__main__':
     b = base() # Create an instance of the base class to get config and logger
 
     logdir = b.config.get("orover", "logdir", fallback="logs")
-    logformat = b.config.get("orover", "logformat", raw=True, fallback="%(asctime)s %(name)-15s %(levelname)-8s guid=%(guid)s %(message)s")
+    logformat = b.config.get("orover", "logformat", raw=True, fallback="%(asctime)s %(name)-15s %(levelname)-8s %(guid)s %(message)s")
     datefmt   = b.config.get("orover", "logdatefmt", raw=True, fallback="%Y-%m-%d %H:%M:%S")
-    logfile_basename = b.config.get("orover", "logfile", fallback="orover.log")
+    logfile_name = b.config.get("orover", "logfile", fallback="orover.log")
     max_logfiles = b.config.getint("orover", "max_logfiles", fallback=10)
     
     # Create log directory if it doesn't exist
     os.makedirs(logdir, exist_ok=True)
     
-    # Construct full path with timestamp
-    basename = os.path.splitext(logfile_basename)[0]
-    logfile = os.path.join(logdir, f"{basename}_{b.log_timestamp()}.log")
-    
+    # Keep one stable active logfile name. Rotate any previous run logfile at startup.
+    stem, ext = os.path.splitext(logfile_name)
+    logfile = os.path.join(logdir, logfile_name)
+    if os.path.isfile(logfile) and os.path.getsize(logfile) > 0:
+        rotated = os.path.join(logdir, f"{stem}_{b.log_timestamp()}{ext}")
+        if os.path.exists(rotated):
+            i = 1
+            while os.path.exists(f"{rotated}.{i}"):
+                i += 1
+            rotated = f"{rotated}.{i}"
+        os.rename(logfile, rotated)
+        print(f"Rotated logfile {logfile} -> {rotated}")
+
     logging.basicConfig(format=logformat, datefmt=datefmt, filename=logfile)
     
     # Clean up old logfiles
-    cleanup_old_logfiles(logdir, basename, max_logfiles)
+    cleanup_old_logfiles(logdir, stem, ext, max_logfiles)
     
     root_logger = logging.getLogger()
     for handler in root_logger.handlers:
