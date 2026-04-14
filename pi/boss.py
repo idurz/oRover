@@ -35,7 +35,7 @@ class handler:
         if "me" in msg and "ts" in msg:
            # store name and timestamp of last heartbeat for each script
            heartbeats[msg["me"]] = msg["ts"]
-           p.logger.debug(f"Stored heartbeat from {msg['me']} at {msg['ts']}")
+           p.logger.debug(f"Stored heartbeat from {msg['me']}")
         return True
     
     def event_object_detected(self,message):

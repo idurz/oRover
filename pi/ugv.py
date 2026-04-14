@@ -15,6 +15,10 @@ import json
 import threading
 
 
+# todo: 2026-04-14 22:08:42 ugv      DEBUG     - Received serial data: b'{"T": 1, "L": 0.5, "R": 0.5}\n'
+#2026-04-14 22:08:42 ugv      DEBUG     - serial_data_received -> {'T': 1, 'L': 0.5, 'R': 0.5}
+#2026-04-14 22:08:42 ugv      DEBUG     - Received serial data with unrecognized format: {'T': 1, 'L': 0.5, 'R': 0.5}, returning False
+
 
 class handler:
     """ Contains the handlers for UGV messages. Each handler takes a message as input and returns a result string. 
@@ -33,7 +37,38 @@ class handler:
            ,"reason": type of message, should be in class origin, state, event, origin, actuator, controller, priority, cmd
            ,"body"  : JSON; contains parameters depending on type of message
     """
+    def __init__(self):
+        self.ismoving = False # Checks if robot is currently moving, to prevent sending multiple movement commands at the same time. 
 
+    def cmd_move(self,message):
+        # Handle move command, expects body to contain "left_speed" and "right_speed" parameters, which are the speeds for the left and right wheels in m/s        
+        if self.ismoving:
+            u.logger.warning("cmd_move ignored: robot is already moving")
+            return False
+        body = message.get('body', {})
+        left_speed  = body.get('left_speed',  LINEAR_SPEED)
+        right_speed = body.get('right_speed', LINEAR_SPEED)
+        self.ismoving = True
+        self.mv_thread = threading.Thread(target=move_rover, args=(left_speed, right_speed), daemon=True)
+        self.mv_thread.start()
+
+    def cmd_moveTo(self,message):
+        # Handle moveTo command, expects body to contain "distance" and "angle" parameters, which are the distance in m and angle in degrees to move relative to current position. 
+        # The robot should calculate the required wheel speeds and durations to achieve the desired movement, and send the appropriate motor commands to the serial port.        
+        if self.ismoving:
+            u.logger.warning("cmd_moveTo ignored: robot is already moving")
+            return False
+        body = message.get('body', {})
+        distance = body.get('distance')
+        angle    = body.get('angle')
+        self.ismoving = True
+        self.mv_thread = threading.Thread(target=move_rover, args=(LINEAR_SPEED, LINEAR_SPEED), kwargs={'distance': distance, 'angle': angle}, daemon=True)
+        self.mv_thread.start()
+
+    # def obstakel
+
+
+    
     # Wheel speed control  {"T":1,"L":<speed>,"R":<speed>} <speed> range -0.5 ~ +0.5 for right and left wheel. Unit m/s 
 
     # PWM motor control   {"T":11,"L":<range>,"R":<range>} <range> range -255 ~ +255. Suggested is to use this command only for debugging. For speed control you should use "Wheel speed control" above 
@@ -82,7 +117,6 @@ class handler:
         return s    
 
 
-
 class base(baseprocess):
 
     # serial data handler, translates the serial data to a message and sends it to the bus
@@ -92,9 +126,9 @@ class base(baseprocess):
         try:
             msg = json.loads(data.decode())
         except (json.JSONDecodeError, UnicodeDecodeError) as e:
-            u.logger.debug(f"Failed to parse serial data: {data} with exception {e}")   
+            u.logger.debug(f"Failed to parse serial data into json: {data} with exception {e}")   
             return None
-        
+
         result = serial_data_received(msg)
         return result
 
@@ -124,12 +158,54 @@ class base(baseprocess):
             data = u.serial_port.read(1024)
             #print("UGV server looping, port read...")
             if data:
-                u.logger.debug(f"Received serial data: {data}")
+                u.logger.debug(f"Received serial data: {json.dumps(data.decode())}")
                 msg = self.handle_serial(data)
                 if msg:
                     u.logger.debug(f"Publishing message from serial data: {msg}")  
-                self.pub.send_json(msg)
+                    self.pub.send_string(msg)
 
+
+def move_rover(left_speed, right_speed, angle = None, distance = None):
+    # This function calculates the required motor commands to move the robot forward with the given speeds, 
+    # and optionally rotate by a certain angle or move a certain distance. If angle or distance is provided, 
+    # the function calculates the required duration for the movement and send the appropriate (multiple) motor commands
+    
+    #lusje totdat thread is stopped, in loop check if distance or angle is reached, if not send motor command, if yes stop motors and exit thread.
+
+    def _write(left, right):
+        cmd = json.dumps({"T": 1, "L": round(left, 2), "R": round(right, 2)}) + "\n"
+        u.serial_port.write(cmd.encode())
+
+    def _stop():
+        _write(0.0, 0.0)
+        h.ismoving = False
+
+    try:
+        if distance is not None:
+            # Drive straight for a calculated duration based on LINEAR_SPEED
+            direction = 1.0 if distance >= 0 else -1.0
+            duration = abs(distance) / LINEAR_SPEED
+            start = time.time()
+            while time.time() - start < duration:
+                _write(left_speed * direction, right_speed * direction)
+                time.sleep(CMD_PERIOD)
+
+        if angle is not None:
+            # Rotate in-place for a calculated duration based on ANGULAR_SPEED
+            direction = 1.0 if angle >= 0 else -1.0
+            duration = abs(angle) / ANGULAR_SPEED
+            start = time.time()
+            while time.time() - start < duration:
+                _write(-left_speed * direction, right_speed * direction)
+                time.sleep(CMD_PERIOD)
+
+        if distance is None and angle is None:
+            # Continuous movement: keep sending motor commands until ismoving is cleared
+            while h.ismoving:
+                _write(left_speed, right_speed)
+                time.sleep(CMD_PERIOD)
+    finally:
+        _stop()
 
 # ---------------- CONFIG ----------------
 LINEAR_SPEED = 0.3     # m/s (tune this)
@@ -138,53 +214,13 @@ ANGULAR_SPEED = 45.0   # deg/s (tune this)
 CMD_PERIOD = 0.1       # seconds (10 Hz, keeps watchdog alive)
 # ----------------------------------------
 
-def send_cmd(ser, left, right):
-    cmd = f'{{"T":1,"L":{left:.2f},"R":{right:.2f}}}\n'
-    with ser_lock:
-        ser.write(cmd.encode())
-
-def stop(ser):
-    with ser_lock:
-        send_cmd(ser, 0.0, 0.0)
-
-def drive_straight(ser, distance):
-    direction = 1.0 if distance >= 0 else -1.0
-    duration = abs(distance) / LINEAR_SPEED
-
-    left = 0.3 * direction
-    right = 0.3 * direction
-
-    start = time.time()
-    while time.time() - start < duration:
-        with ser_lock:
-            send_cmd(ser, left, right)
-            time.sleep(CMD_PERIOD)
-
-    stop(ser)
-
-def rotate(ser, angle_deg):
-    direction = 1.0 if angle_deg >= 0 else -1.0
-    duration = abs(angle_deg) / ANGULAR_SPEED
-
-    # In-place rotation
-    left = -0.3 * direction
-    right = 0.3 * direction
-
-    start = time.time()
-    while time.time() - start < duration:
-        with ser_lock:
-            send_cmd(ser, left, right)
-            time.sleep(CMD_PERIOD)
-
-    stop(ser)
-
 def serial_data_received(msg):
     # This function is called when serial data is received, it should parse the message and return a new message 
     # to be published to the bus. For example, if the incoming message has a type "imu_data", you can create a new 
     # message with the IMU data and return it
-    u.logger.debug(f"serial_data_received -> {msg}")   
+    u.logger.debug(f"serial_data_received -> {json.dumps(msg.decode())}")   
 
-    if "T" in msg and msg["T"] == 1001: # IMU data
+    if "T" in msg and msg.get("T") == 1001: # IMU data
         #Serialized data {'T': 1001, 'L': 0, 'R': 0, 'r': -0.249505609, 'p': -0.54175359, 'y': 'null', 'v': 12.37787056} 
         u.send_event(src = orover.origin.sensor_imu
                     ,reason = orover.state.battery
@@ -200,9 +236,11 @@ def serial_data_received(msg):
                         }
                     )
         return True
-
-    u.logger.debug(f"Received serial data with unrecognized format: {msg}, returning False")  
-    return False
+    else:
+    # discard unrecognized serial data, silently 
+    #else:
+    #    u.logger.debug(f"Received serial data with unrecognized format: {msg}, returning False")  
+        return False
 
 #### Main execution starts here ####
 if __name__ == "__main__":

@@ -1,6 +1,8 @@
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
 import oroverlib as orover
+import threading
+import csv
 from base_process import baseprocess, handler
 
 heartbeats = {};
@@ -26,6 +28,7 @@ class handler:
            ,"reason": type of message, should be in class origin, state, event, origin, actuator, controller, priority, cmd
            ,"body"  : JSON; contains parameters depending on type of message
     """
+
     def event_heartbeat(self, msg):
     
         global heartbeats
@@ -35,7 +38,7 @@ class handler:
         if "me" in msg and "ts" in msg:
            # store name and timestamp of last heartbeat for each script
            heartbeats[msg["me"]] = msg["ts"]
-           p.logger.debug(f"Stored heartbeat from {msg['me']} at {msg['ts']}")
+           p.logger.debug(f"Stored heartbeat from {msg['me']}")
            socketio.emit("heartbeat", {"me": msg["me"], "timestamp": msg["ts"]})
         return True
     
@@ -114,7 +117,7 @@ def publish():
 
     data = request.json
     message = data.get("message")
-
+    p.logger.debug(f"Received message to publish: {message}")
     pub_socket.send_string(message)
 
     return jsonify({"status": "sent", "message": message})
@@ -231,6 +234,6 @@ if __name__ == "__main__":
     port = config.getint('app', 'port', fallback=5000)
 
     p.logger.info(f"Starting Flask app with debug={debug_mode}, host={host}, port={port}")
-    socketio.run(app, host=host, port=port, debug=debug_mode, use_reloader=False)
+    socketio.run(app, host=host, port=port, debug=debug_mode, use_reloader=False,allow_unsafe_werkzeug=True)
 
     #app.run(debug=True,host="0.0.0.0",port=5000)

@@ -1,5 +1,41 @@
 # Changelog - oRover (as of 2026-04-12)
 
+## Update 2026-04-14
+
+### Web/UI and Heartbeat Handling
+**Files Modified:** `pi/app.py`, `pi/boss.py`, `pi/base_process.py`, `pi/template/index.html`
+
+- Heartbeat handler logging in app/boss was simplified to log sender name without repeating timestamp text.
+- Base heartbeat payload body was changed from `{"script": self.myname}` to an empty object (`{}`).
+- Flask publish endpoint now logs incoming message payload before forwarding to the bus.
+- Flask Socket.IO startup now explicitly enables unsafe Werkzeug mode for current runtime setup.
+- UI control button behavior was adjusted by disabling `mouseleave` stop handling for bound action buttons.
+
+### Enum Naming Corrections
+**File Modified:** `pi/oroverlib.py`
+
+- Renamed origin enum `orover_app` to `orover_webrover` (id 1506).
+- Fixed enum typo `orver_testcmd` to `orover_testcmd` (id 1508).
+
+### UGV Motion/Serial Pipeline Rework
+**File Modified:** `pi/ugv.py`
+
+- Added threaded motion command handling in `handler` with new `__init__`, `cmd_move`, `cmd_moveTo`, and placeholder `obstakeL`.
+- `cmd_move` now starts a movement thread with wheel speed parameters from message body.
+- `cmd_moveTo` now starts a movement thread with `distance`/`angle` parameters for timed movement execution.
+- Added `move_rover(left_speed, right_speed, angle=None, distance=None)` implementation with direct serial write, timed straight drive, timed in-place rotation, continuous drive loop mode, and guaranteed stop/reset in `finally`.
+- Removed older helper flow (`send_cmd`, `drive_straight`, `rotate`, `stop`) as outdated.
+- Serial parsing/logging path updates:
+	- parse failure log now states "into json",
+	- raw serial bytes are logged as decoded JSON string,
+	- publish path switched from `send_json` to `send_string` for bus output.
+- `serial_data_received` now uses `msg.get("T")` style access and silent discard for unknown message types.
+- Added temporary TODO/debug comment block documenting observed serial feedback format during testing.
+
+### Note
+
+- Local workspace metadata file `.DS_Store` changed in git status (non-functional change).
+
 ## Update 2026-04-12 (session 2)
 
 ### app.py — prevent double webserver startup

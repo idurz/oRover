@@ -102,9 +102,9 @@ class origin(IntEnum):
     orover_boss                        = 1503
     orover_hcsr04                      = 1504
     orover_ugv                         = 1505
-    orover_app                         = 1506
+    orover_webrover                    = 1506
     orover_stopper                     = 1507   
-    orver_testcmd                      = 1508
+    orover_testcmd                     = 1508
     orover_user1                       = 1511
     orover_user2                       = 1512
     orover_user3                       = 1513

@@ -320,7 +320,7 @@ class baseprocess:
         while self.running:
             self.send_event(src=self.name_to_enum(f'orover_{self.myname}')
                            ,reason=orover.event.heartbeat
-                           ,body={"script": self.myname})
+                           ,body={})
             time.sleep(self.heart_beart_interval)
 
     
