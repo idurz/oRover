@@ -1,5 +1,60 @@
 # Changelog - oRover (as of 2026-04-12)
 
+## Update 2026-04-15
+
+### Navigation process — observe-only SLAM scaffold (new file)
+**File Added:** `pi/navigation.py`
+
+- New process that subscribes passively to existing bus messages: `state.motion`, `state.battery`, `event.object_detected`.
+- Maintains internal dead-reckoning pose estimate (x, y, heading) from wheel speeds and IMU heading via timed integration.
+- Maintains a configurable occupancy grid updated with obstacle distance readings using simple Bresenham-style cell marking.
+- Publishes read-only `state.pose` snapshots to the event bus at a configurable interval; no motor commands are issued.
+- Background thread emits a periodic debug log snapshot (pose, speed, battery, obstacle count).
+- Grid and publish behaviour are controlled entirely via `[navigation]` config section; process is safe to disable.
+
+### Navigation process — enabled and configured
+**File Modified:** `pi/config.ini`
+
+- Enabled `navigation = navigation.py` in `[scripts]` section.
+- Added `[navigation]` config section with tunable parameters: `pose_publish_interval`, `grid_size`, `grid_resolution_m`, `grid_preview_size`, `max_obstacle_range_m`, `snapshot_log_interval`.
+
+### oroverlib.py — new origin enum for navigation process
+**File Modified:** `pi/oroverlib.py`
+
+- Added `orover_navigation = 1509` to `origin` enum to give the navigation process a correctly typed event source identity on the bus.
+
+### app.py — navigation state feed to web UI
+**File Modified:** `pi/app.py`
+
+- Added `state_pose` handler that receives `state.pose` events originating from the navigation process only (filtered by source enum).
+- On receipt, updates `shared_state` map/robot snapshot and emits `nav_state` Socket.IO event to all connected browser clients.
+
+### template/index.html — read-only navigation panel
+**File Modified:** `pi/template/index.html`
+
+- Added a "Navigation (observe-only)" panel displaying: pose (x, y, heading), wheel speeds, obstacle count, grid metadata.
+- Added ASCII occupancy grid preview (`.` free, `+` low probability, `#` occupied) updated in real time via `nav_state` Socket.IO event.
+
+### commandset.md — complete command reference rebuilt from ESP source
+**File Modified:** `doc/commandset.md`
+
+- Replaced partial/inconsistent command table with a complete, categorised reference sourced directly from `esp/include/json_cmd.h`.
+- Commands organised into sections: UGV/module/IMU/feedback, Arm/EoAT, File/mission editing, ESP-NOW, WiFi, Servo/device management, Feedback/event messages from ESP.
+- All T-codes, parameter names, and brief descriptions filled in; previously empty or missing entries completed.
+- Added previously undocumented commands: `CMD_RESET_PID` (109), `CMD_SWITCH_CTRL` (113), `CMD_LIGHT_CTRL` (114), `CMD_SWITCH_OFF` (115), `CMD_JOINTS_ANGLE_CTRL` (122), `CMD_GET_MAC_ADDRESS` (302), `CMD_WIFI_CONFIG_CREATE_BY_INPUT` (407), `CMD_FREE_FLASH_SPACE` (601), `CMD_BOOT_MISSION_INFO` (602), `CMD_RESET_BOOT_MISSION` (603), feedback events 1001–1005.
+
+### base_process.py — remove redundant logger None-guards
+**File Modified:** `pi/base_process.py`
+
+- Removed all `if self.logger is not None:` checks throughout `baseprocess`; logger is now unconditionally used after `__init__`.
+- Added defensive fallback in `__init__`: if `setlogger()` returns `None` (e.g. when overridden by a subclass), a `NullHandler`-backed logger is created automatically, keeping all call sites safe.
+
+### logserver.py — safe bootstrap logger
+**File Modified:** `pi/logserver.py`
+
+- Replaced `setlogger(...): pass` override with an explicit return of a `NullHandler`-backed logger for the bootstrap phase.
+- Prevents `AttributeError` on `self.logger` calls that now happen unconditionally in `baseprocess`.
+
 ## Update 2026-04-14
 
 ### Web/UI and Heartbeat Handling

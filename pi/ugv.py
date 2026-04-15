@@ -218,7 +218,7 @@ def serial_data_received(msg):
     # This function is called when serial data is received, it should parse the message and return a new message 
     # to be published to the bus. For example, if the incoming message has a type "imu_data", you can create a new 
     # message with the IMU data and return it
-    u.logger.debug(f"serial_data_received -> {json.dumps(msg.decode())}")   
+    u.logger.debug(f"serial_data_received -> {json.dumps(msg)}")   
 
     if "T" in msg and msg.get("T") == 1001: # IMU data
         #Serialized data {'T': 1001, 'L': 0, 'R': 0, 'r': -0.249505609, 'p': -0.54175359, 'y': 'null', 'v': 12.37787056} 

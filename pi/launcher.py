@@ -175,8 +175,9 @@ if __name__ == "__main__":
     if len(defined_processes) == 0:
         sys.exit(f"config does not have any processes defined in the [scripts] section")
     
-    b.logger.info(f"-------------------- Starting o R o v e r --------------------")
-    print(f"-------------------- Starting o R o v e r --------------------")
+    msg = f"-------------------- Starting o R o v e r --------------------"
+    b.logger.info(msg)
+    print(msg)
 
     # Start each defined process defined in the config file, if command is empty skip the process
     for p in defined_processes:
@@ -197,11 +198,8 @@ if __name__ == "__main__":
     m = f"Laucher with PID {os.getpid()} started {len(started_processes)} processes, waiting for termination signal"
     print(m)
     b.logger.info(m)
-    b.logger.info(f"-------------------- Started o R o v e r --------------------")
-    print(f"-------------------- Started o R o v e r --------------------")
+    msg = f"-------------------- Started o R o v e r --------------------"
+    b.logger.info(msg)
+    print(msg)
 
     b.run() # Start the main loop of the server, which will listen for messages and call the appropriate handlers based on the message reason
-
-# Keep the main thread alive to listen for signals
-#while True:
-#   time.sleep(1)

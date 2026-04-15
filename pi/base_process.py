@@ -20,7 +20,6 @@ import logging, logging.handlers
 import oroverlib as orover
 import setproctitle
 
-
 _log_guid = contextvars.ContextVar("log_guid", default="-")
 _log_record_factory_installed = False
 
@@ -73,12 +72,17 @@ class baseprocess:
         self.get_lock() # Get a lock to prevent multiple instances of the same script running at the same time
 
         self.logger = self.setlogger(self.config, self.myname)
+        if self.logger is None:
+            # Subclasses may override setlogger; always keep a usable logger object.
+            self.logger = logging.getLogger(self.myname)
+            if not self.logger.handlers:
+                self.logger.addHandler(logging.NullHandler())
         setproctitle.setproctitle(f"orover:{self.myname}")
         msg = f"Starting process {self.myname} with PID {os.getpid()} using config file {self.configfile}"
-        if self.logger is not None:
-            self.logger.info(msg)
+        self.logger.info(msg)
         print(msg)
 
+        # set system state variables
         self.running = True
         self.pause = False
 
@@ -97,8 +101,7 @@ class baseprocess:
         if self.handler is not None:
             self.fetchtopics()
         else:
-            if self.logger is not None:
-                self.logger.warning(f"No handler class provided for {self.myname}, no message handlers will be registered") 
+            self.logger.warning(f"No handler class provided for {self.myname}, no message handlers will be registered") 
         
         # Start done, register signal handler for graceful shutdown and log the start of the process
         signal.signal(signal.SIGTERM, self.terminate)
@@ -113,7 +116,6 @@ class baseprocess:
     def zmq_threading_listener(self):
         # ZMQ listener for threading mode, runs in a separate thread and listens for messages on the SUB socket, 
         # then handles the messages. Will not be called if not in threading mode.
-        self.logger.debug(f"Starting ZMQ threading listener for {self.myname}")
         self.sub = self.create_sub_socket(self.ctx)
         while self.running:
             topicmsg = self.sub.recv_string()
@@ -139,7 +141,6 @@ class baseprocess:
         if config.has_section('scripts'):
             for name, path in config.items('scripts'):  # Find the script entry that matches our current executable script.
                 if script_name == os.path.basename(path.strip()):
-                    print(f"Found script name {script_name} in config, using process name {name}")
                     return name
         return os.path.splitext(script_name)[0]
 
@@ -182,8 +183,7 @@ class baseprocess:
         # Create a ZMQ PUB socket and connect to the event bus for publishing messages
         pub = ctx.socket(zmq.PUB)
         pub.connect(self.config.get("eventbus","client_pub_socket",fallback="tcp://localhost:5556"))
-        if self.logger is not None:
-            self.logger.debug(f"Created PUB socket and connected to {self.config.get('eventbus','client_pub_socket',fallback='tcp://localhost:5556')}")
+        self.logger.debug(f"Created PUB socket and connected to {self.config.get('eventbus','client_pub_socket',fallback='tcp://localhost:5556')}")
         return pub
 
     def create_sub_socket(self, ctx):
@@ -191,8 +191,7 @@ class baseprocess:
         sub = ctx.socket(zmq.SUB)
         sub.connect(self.config.get("eventbus","client_sub_socket",fallback="tcp://localhost:5555"))
         sub.setsockopt_string(zmq.SUBSCRIBE, "")
-        if self.logger is not None:
-            self.logger.debug(f"Created SUB socket and connected to {self.config.get('eventbus','client_sub_socket',fallback='tcp://localhost:5555')}")
+        self.logger.debug(f"Created SUB socket and connected to {self.config.get('eventbus','client_sub_socket',fallback='tcp://localhost:5555')}")
         return sub
         
     
@@ -232,7 +231,6 @@ class baseprocess:
     
     def mogrify(self, topic, msg):
         # json encode the message and prepend the topic
-        self.logger
         return topic + ' ' + json.dumps(msg)
 
 
@@ -253,20 +251,17 @@ class baseprocess:
         token = self.set_log_guid(msg_id)
 
         try:
-            if self.logger is not None:
-                # find src in enums for better logging, otherwise log the numeric value
-                src_name = self.enum_to_name(src)
-                reason_name = self.enum_to_name(reason)
-                self.logger.debug(f"Preparing to send event with src {src_name}, reason {reason_name}, body {body} and prio {prio}")
+            # find src in enums for better logging, otherwise log the numeric value
+            src_name = self.enum_to_name(src)
+            reason_name = self.enum_to_name(reason)
+            #self.logger.debug(f"Preparing to send event with src {src_name}, reason {reason_name}, body {body} and prio {prio}")
 
             if not isinstance (src,(orover.origin, orover.actuator, orover.controller)):
-                if self.logger is not None:
-                    self.logger.error(f"Invalid 'src' field, must be known enum ({src})")
+                self.logger.error(f"Invalid 'src' field, must be known enum ({src})")
                 return False
 
             if not isinstance(reason, (orover.cmd, orover.state, orover.event)):
-                if self.logger is not None:
-                    self.logger.error(f"Invalid 'reason' field must be known enum ({reason})")
+                self.logger.error(f"Invalid 'reason' field must be known enum ({reason})")
                 return False
 
             # check if body is valid json
@@ -275,16 +270,14 @@ class baseprocess:
                 try:
                     body_field = json.loads(body)
                 except (json.JSONDecodeError, ValueError):
-                    if self.logger is not None:
-                        self.logger.error(f"{body} is not valid JSON")
+                    self.logger.error(f"{body} is not valid JSON")
                     return False
 
             # priority: accept an int or Priority member
             if prio is None:
                 prio = orover.priority.normal
                 if not isinstance(prio,orover.priority):
-                    if self.logger is not None:
-                        self.logger.error(f"Invalid 'prio' field must be known enum ({prio})")
+                    self.logger.error(f"Invalid 'prio' field must be known enum ({prio})")
                     return False
 
 
@@ -301,13 +294,11 @@ class baseprocess:
 
             # create the topic string and JSON encode the message, then send to the bus
             msgstring = self.mogrify(self.enum_to_name(reason), msg)
-            if self.logger is not None:
-                self.logger.info(f"Publishing event {self.enum_to_name(reason)}")
+            self.logger.info(f"Publishing event {self.enum_to_name(reason)}")
 
             self.pub.send_string(msgstring)
         except Exception as e:
-            if self.logger is not None:
-                self.logger.error(f"Publishing ZMQ message failed with exception {e}")
+            self.logger.error(f"Publishing ZMQ message failed with exception {e}")
             return False
         finally:
             self.reset_log_guid(token)
@@ -368,8 +359,7 @@ class baseprocess:
         try:
             r = msg['src'] in orover.controller or msg['src'] in orover.origin
         except:
-            if self.logger is not None:
-                self.logger.error(f"Exception {msg['src']}, must be in orover.controller or orover.origin")
+            self.logger.error(f"Exception {msg['src']}, must be in orover.controller or orover.origin")
             return False
         return r
 
@@ -382,27 +372,21 @@ class baseprocess:
     def valid_message(self, msg):
         # Check if the message has the required fields and valid values, return True if valid, False otherwise
         if not self.all_fields_present(msg):
-            if self.logger is not None:
-                self.logger.error(f"Discarding message {msg} --> Field missing in message")
+            self.logger.error(f"Discarding message {msg} --> Field missing in message")
             return False
         if not self.valid_uuid(msg['id']):
-            if self.logger is not None:
-                self.logger.error(f"Discarding message {msg} --> {msg['id']}<< is not a valid UUID version 4")
+            self.logger.error(f"Discarding message {msg} --> {msg['id']}<< is not a valid UUID version 4")
             return False
         if not self.valid_datetime(msg['ts']):
-            if self.logger is not None:
-                self.logger.error(f"Discarding message >>{msg['ts']}<< is not a valid datetime in format '%Y-%m-%dT%H:%M:%S.%f'")
+            self.logger.error(f"Discarding message >>{msg['ts']}<< is not a valid datetime in format '%Y-%m-%dT%H:%M:%S.%f'")
             return False
         if not self.valid_source(msg):
-            if self.logger is not None:
-                self.logger.error(f"Discarding message >>{msg['src']}<< is not a valid origin")
+            self.logger.error(f"Discarding message >>{msg['src']}<< is not a valid origin")
             return False
         if not self.valid_priority(msg['prio']):
-            if self.logger is not None:
-                self.logger.error(f"Discarding message >>{msg['prio']}<< is not a valid priority")
+            self.logger.error(f"Discarding message >>{msg['prio']}<< is not a valid priority")
             return False
-        if self.logger is not None:
-            self.logger.debug(f"Validated message {msg}")
+        #self.logger.debug(f"Validated message {msg}")
         return True
 
 

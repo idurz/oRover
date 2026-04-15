@@ -31,7 +31,10 @@ class base(baseprocess):
         os._exit(os.EX_OK) # sys.exit will not work here because of the socketserver, so we use os._exit to force exit immediately
 
     def setlogger(self,config,myname):
-        pass # No need to set up a logger here, we will use the root logger for the logserver, and the socket handler will log to the appropriate logger based on the record name
+        # Use a local no-op logger during bootstrap; the root logger is configured later in __main__.
+        logger = logging.getLogger(myname)
+        logger.addHandler(logging.NullHandler())
+        return logger
 
 
 class EnsureGuidFilter(logging.Filter):

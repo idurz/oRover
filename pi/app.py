@@ -11,6 +11,12 @@ state = {"temperature": 22,
         "angle": 0,
         "voltage": 14}
 
+shared_state = {
+    "map": None,
+    "robot": (0, 0),
+    "path": []
+}
+
 class handler:
     """ Contains the handlers for messages. Each handler takes a message as input and returns a result string. 
         The handlers are called by the BOSS server when a message with the corresponding reason is received.
@@ -65,6 +71,27 @@ class handler:
         else:
             p.logger.warning("Received IMU state message without required fields")
             return False
+
+    def state_pose(self, msg):
+        # Read-only navigation snapshot updates from navigation process.
+        src = msg.get("src")
+        nav_src = int(orover.origin.orover_navi)
+        if int(src) != nav_src:
+            return False
+
+        body = msg.get("body", {})
+        if not isinstance(body, dict):
+            return False
+
+        shared_state["map"] = body.get("grid", {}).get("preview")
+        shared_state["robot"] = (
+            body.get("pose", {}).get("x_m", 0.0),
+            body.get("pose", {}).get("y_m", 0.0),
+            body.get("pose", {}).get("heading_deg", 0.0),
+        )
+
+        socketio.emit("nav_state", body)
+        return True
     
     
 class base(baseprocess):
@@ -168,10 +195,6 @@ def control():
     answer = p.send_event(src=orover.controller.remote_interface,
                             reason=orover.cmd.set_motor_speed,   
                             body={"left_speed": left_speed, "right_speed": right_speed})
-
-    #if answer:
-    #    print(f"Boss told me {answer}")
-
     return jsonify({"status": answer}), 200
 
     # Example: small temp/voltage drift to show changes
@@ -181,25 +204,13 @@ def control():
     #return jsonify({"status": "ok", "action": action, "state": state})
 
 
-#@app.route("/status")
-#def status():
-#    global state
-    # Return current values for frontend to display
-    #return jsonify({
-    #    "temperature": round(state["temperature"], 2),
-    #    "speed": round(state["speed"], 2),
-    #    "angle": round(state["angle"], 2),
-    #    "voltage": round(state["voltage"], 2)
-    #})
-#    return {}
-
 @app.route("/readroute", methods=["POST"])
 def readroute():
     rx_commands()
     return jsonify(status="route processed")
 
 # -----------------------------
-# Route processing (NEW)
+# Route processing
 # -----------------------------
 @app.route('/route', methods=['POST'])
 def route():
@@ -223,7 +234,6 @@ def route():
 
    #open file and fill commands
     rx_commands()
-
     return jsonify(status="route accepted", steps=len(route))
 
 
@@ -235,5 +245,3 @@ if __name__ == "__main__":
 
     p.logger.info(f"Starting Flask app with debug={debug_mode}, host={host}, port={port}")
     socketio.run(app, host=host, port=port, debug=debug_mode, use_reloader=False,allow_unsafe_werkzeug=True)
-
-    #app.run(debug=True,host="0.0.0.0",port=5000)

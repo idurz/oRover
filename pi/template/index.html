@@ -88,6 +88,15 @@
       <button onclick="readRoute()">📤 Read route</button>
 	    <button onclick="sendRoute()">📤 Send route</button>
     </div>
+
+    <!--div class="status-box" style="margin-top:24px;">
+      <h3>Navigation (observe-only)</h3>
+      <div>Pose: <span id="navPose">x=0.00, y=0.00, h=0.00</span></div>
+      <div>Speed: <span id="navSpeed">L=--, R=--</span></div>
+      <div>Obstacles: <span id="navObstacles">0</span></div>
+      <div>Grid: <span id="navGridMeta">no data</span></div>
+      <pre id="navGrid" style="max-height:180px; overflow:auto; background:#f4f4f4; padding:8px;"></pre>
+    </div-->
 </body>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
 <script>
@@ -101,6 +110,31 @@ socket.on("connect", () => {
 socket.on("battery_state", (data) => {
   console.log("Received:", data);
   document.getElementById("voltage").textContent = data.voltage.toFixed(2);
+});
+
+socket.on("nav_state", (data) => {
+  const pose = data.pose || {};
+  const speed = data.speed || {};
+  const grid = data.grid || {};
+
+  document.getElementById("navPose").textContent =
+    `x=${Number(pose.x_m || 0).toFixed(2)}, y=${Number(pose.y_m || 0).toFixed(2)}, h=${Number(pose.heading_deg || 0).toFixed(2)}`;
+  document.getElementById("navSpeed").textContent =
+    `L=${speed.left_mps ?? '--'}, R=${speed.right_mps ?? '--'}`;
+  document.getElementById("navObstacles").textContent = String(data.obstacle_count ?? 0);
+
+  const preview = Array.isArray(grid.preview) ? grid.preview : [];
+  document.getElementById("navGridMeta").textContent =
+    `${preview.length}x${preview[0] ? preview[0].length : 0}, res=${grid.resolution_m ?? '--'}m`;
+
+  const chars = preview.map((row) =>
+    row.map((v) => {
+      if (v >= 0.8) return "#";
+      if (v >= 0.2) return "+";
+      return ".";
+    }).join("")
+  ).join("\n");
+  document.getElementById("navGrid").textContent = chars;
 });
 
 const HB_INTERVAL_MS = {{ heartbeat_interval }} * 1000;
@@ -154,18 +188,6 @@ async function sendAction(action) {
     console.error(e);
   }
 }
-
-//async function updateStatus() {
-//  try {
-//    const res = await fetch('/status');
-//    if (!res.ok) return;
-//    const j = await res.json();
-    //document.getElementById('temperature').textContent = j.temperature;
-    //document.getElementById('speed').textContent = j.speed;
-    //document.getElementById('angle').textContent = j.angle;
-    //document.getElementById('voltage').textContent = j.voltage;
-//  } catch (e) { console.error(e); }
-//}
 
 let route = [];
 
