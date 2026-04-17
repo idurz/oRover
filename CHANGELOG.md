@@ -1,27 +1,33 @@
-# Changelog - oRover (as of 2026-04-12)
+# Changelog - oRover (as of 2026-04-17)
+
+## Update 2026-04-17
+
+### Navigation merged into boss.py — navigation.py made obsolete
+**Files Modified:** `pi/boss.py`, `pi/config.ini` 
+
+- `boss.py` now handles `state.motion`, `state.battery`, and `event.object_detected` for both BOSS and navigation purposes.
+- Navigation background threads (pose publisher, snapshot logger) started from `boss.py __main__`.
+- Pose events published with source `orover_boss`; `[boss]` 
+
+---
 
 ## Update 2026-04-15
 
-### Navigation process — observe-only SLAM scaffold (new file)
-**File Added:** `pi/navigation.py`
+### Navigation — observe-only SLAM scaffold merged into boss.py
+**File Modified:** `pi/boss.py` 
 
-- New process that subscribes passively to existing bus messages: `state.motion`, `state.battery`, `event.object_detected`.
+- `boss.py` now subscribes passively to existing bus messages: `state.motion`, `state.battery`, `event.object_detected`.
 - Maintains internal dead-reckoning pose estimate (x, y, heading) from wheel speeds and IMU heading via timed integration.
 - Maintains a configurable occupancy grid updated with obstacle distance readings using simple Bresenham-style cell marking.
-- Publishes read-only `state.pose` snapshots to the event bus at a configurable interval; no motor commands are issued.
+- Publishes read-only `state.pose` snapshots to the event bus at a configurable interval (source enum: `orover_boss`); no motor commands are issued.
 - Background thread emits a periodic debug log snapshot (pose, speed, battery, obstacle count).
-- Grid and publish behaviour are controlled entirely via `[navigation]` config section; process is safe to disable.
+- Grid and publish behaviour are controlled entirely via `[boss]` config section in `config.ini`.
 
-### Navigation process — enabled and configured
+### Navigation process — configured under boss.py
 **File Modified:** `pi/config.ini`
 
-- Enabled `navigation = navigation.py` in `[scripts]` section.
-- Added `[navigation]` config section with tunable parameters: `pose_publish_interval`, `grid_size`, `grid_resolution_m`, `grid_preview_size`, `max_obstacle_range_m`, `snapshot_log_interval`.
+- `[boss]` config section updated with tunable parameters: `pose_publish_interval`, `grid_size`, `grid_resolution_m`, `grid_preview_size`, `max_obstacle_range_m`, `snapshot_log_interval`.
 
-### oroverlib.py — new origin enum for navigation process
-**File Modified:** `pi/oroverlib.py`
-
-- Added `orover_navigation = 1509` to `origin` enum to give the navigation process a correctly typed event source identity on the bus.
 
 ### app.py — navigation state feed to web UI
 **File Modified:** `pi/app.py`

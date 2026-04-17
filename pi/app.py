@@ -75,7 +75,7 @@ class handler:
     def state_pose(self, msg):
         # Read-only navigation snapshot updates from navigation process.
         src = msg.get("src")
-        nav_src = int(orover.origin.orover_navi)
+        nav_src = int(orover.origin.orover_boss)
         if int(src) != nav_src:
             return False
 
