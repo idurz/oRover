@@ -188,23 +188,23 @@ class handler:
     """
 
     def event_heartbeat(self, msg):
-
         global heartbeats
         if "me" in msg and "ts" in msg:
            heartbeats[msg["me"]] = msg["ts"]
            p.logger.debug(f"Stored heartbeat from {msg['me']}")
         return True
 
+
     def event_object_detected(self, message):
         sensor = p.enum_to_name(message.get('src'))
         body = message.get('body', {})
         if "distance" not in body:
-            p.logger.warning(f"Message {message['id']} discarded from sensor {sensor}: received without distance parameter in body")
+            p.logger.warning(f"Discarded for sensor {sensor}: missing distance parameter in body")
             return False
 
         d = body.get('distance', 0)
         if d < 0:
-            p.logger.warning(f"Message {message['id']} discarded from sensor {sensor}: distance {d} is negative")
+            p.logger.warning(f"Discarded for sensor {sensor}: distance {d} is negative")
             return False
 
         p.nav_state_lock.acquire()
@@ -218,8 +218,9 @@ class handler:
         finally:
             p.nav_state_lock.release()
 
-        print(f"BOSS: Warning: object too close to sensor {sensor} distance {d} cm")
+        #print(f"BOSS: Warning: object too close to sensor {sensor} distance {d} cm")
         return True
+
 
     def state_motion(self, message):
         body = message.get("body", {})
@@ -243,6 +244,7 @@ class handler:
         finally:
             p.nav_state_lock.release()
         return True
+
 
     def state_battery(self, message):
         body = message.get("body", {})
