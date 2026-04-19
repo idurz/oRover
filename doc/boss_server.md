@@ -37,7 +37,21 @@ Messages that fail validation are discarded and logged.
 ## Current BOSS handlers
 Typical handlers in `boss.py` are:
 - `event_heartbeat(msg)`: stores heartbeat timestamps per process
-- `event_object_detected(msg)`: validates body fields and logs warnings/events
+- `event_object_detected(msg)`: validates obstacle distances and updates the local grid map
+- `state_motion(msg)`: stores heading/pitch/roll and left/right speed, then updates pose integration
+- `state_battery(msg)`: stores latest battery voltage in navigation state
+
+## Background loops
+In addition to message handlers, `boss.py` starts optional daemon loops (config-driven):
+- `snapshot_logger_loop`: periodic debug snapshot logging
+- `publish_pose_loop`: publishes aggregated navigation snapshots as `state.pose`
+
+Published pose snapshot body includes:
+- pose (`x_m`, `y_m`, `heading_deg`)
+- speed (`left_mps`, `right_mps`)
+- battery voltage
+- obstacle count
+- occupancy grid preview
 
 ## Configuration
 BOSS is started by `launcher.py` via the `[scripts]` section in `config.ini`.

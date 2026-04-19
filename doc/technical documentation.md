@@ -2,11 +2,18 @@
 
 ## Summary
 
-oRover is build on a distributed system where senors, actuars, motors and analyzers work together by sending messages via the [zeromq](https://zeromq.org/) request/reply format.
-The [BOSS server](orovover.md) act as a controller and is the central heart of the oRover system. It runs in the background continous, accepts requests and status updates and makes decisions to control motors
-and actuars based on that.
+oRover is built as a distributed system where sensors, actuators, motors and
+analyzers communicate through a [ZeroMQ](https://zeromq.org/) pub/sub event
+bus.
 
-By using [zeromq](https://zeromq.org/) and a standarized message format between all elements the system is futureproof and easily adaptable for other type of sensors, image analyzers etc. Converting the message to specific hardware or software needs is done in separate modules which makes troubleshooting easier.
+The [BOSS server](boss_server.md) is the central controller in this setup. It
+runs continuously, consumes events and state updates, maintains navigation
+state, and publishes aggregated pose snapshots for downstream consumers.
+
+By using [ZeroMQ](https://zeromq.org/) and a standardized message format, the
+system is modular and adaptable for additional sensors and services. Protocol
+translation to specific hardware/software happens in dedicated modules, which
+makes troubleshooting easier.
 
 ## Background
 We decided to create oRover primarilry as a project to learn how such a robot should work. Learn about the hardware of such a system, about the software setup and how these two should work together. 
@@ -20,7 +27,10 @@ The robot system is technical divided in two main components as described below
 - Low-level safety logic
 - Deterministic real-time behavior
 
-The ESP Microcontroller is integral part of the [WaveShare UGV Tracked Robot](https://www.waveshare.com/wiki/UGV01) we used for the project. For now, we accept this chassis to work as is and we decided not to touch the ESP software running on that for now. More details on the ESP and the driver board can be found at the [driver board](doc/driverboard.md)
+The ESP microcontroller is an integral part of the
+[WaveShare UGV Tracked Robot](https://www.waveshare.com/wiki/UGV01). More
+details on the ESP and the driver board are in
+[driverboard.md](driverboard.md).
 
 ### Raspberry Pi
 - AI vision processing
@@ -44,8 +54,8 @@ On the start of the project we decicded to note down a few guidelines and made s
 - Tasks need to be independant of each other and can run on the host or somewhere else
 - Tasks must communicate via a distributed method, using [0MQ](https://zeromq.org/get-started/) as message bus, reasoning
   - allows for pub/sub event systems
-  - allows for request/reply commands
-  - ideal for distributed systems, does not need main server like MQTT
+  - supports request/reply patterns when needed
+  - ideal for distributed systems, does not need a central broker process like MQTT
 - Tasks are desigend as multiple processes, not threads because
   - A crash or memory leak in one script won’t kill everything
   - Much easier to restart, upgrade, debug, and monitor
@@ -56,7 +66,10 @@ Based the above we decided to start our host controller work on a Raspberry PI, 
 
 ## The grand picture
 
-The OS, via the job scheduler, will ensure that oRover is automatic started at system startup. Actually systemd wil start only the oRover launcher. The launcher reads the config, to verify which other parts of the system are present and will start these programs in the background. The 
+The OS, via the job scheduler, can ensure oRover is automatically started at
+system startup. In practice, `systemd` starts only the oRover launcher. The
+launcher reads the config, determines which components are enabled, and starts
+these processes in order. The
 - event bus, 
 - ugv controller and
 - oRover boss
@@ -68,23 +81,20 @@ Follow the blue links in the table for the descriptions of the components:
 
 |Owner |Component                        |Description                                                                    |
 |------|---------------------------------|-------------------------------------------------------------------------------|
-|os    |[systemd](systemd)               |OS level systemd scheduler which stops/starts launcher, outside of oRover      |
-|oRover|[configuration](configuration)   |Summary of working and all items in the configuration file                     |
-|oRover|[launcher](launcher)             |Anchor points which starts and stops other scripts of the system               |
-|oRover|[quick-start](quick-start)       |Shell scripts for convenient system startup and shutdown                      |
-|oRover|[ugv controller](ugv)            |Actor scripts which translates BOSS commands to serial UGV board commands      |
-|oRover|[driver board](driverboard)      |The UGV system ESP microcontroller, sensors and motor actors                   |
-|oRover|[event bus](eventbus)            |Event bus script which act as central message server                           |
-|oRover|[enumeration](enumeration)       |Enumeration of commands, states events and other important message parts       |
-|oRover|[robot controller](boss_server)  |BOSS of oRover which decides on actions based on events                        |
-|oRover|[stop helper](stop)              |One-shot helper script publishing `cmd.shutdown` to request system shutdown    |
-|oRover|[enum uniqueness test](test_enum_name_uniqueness) |Regression test that detects duplicate enum member names                        |
-|option|[mqtt connector](mqtt)           |Optional MQTT connector script translating event buss messages to MQTT         |
-|option|[web portal](web)                |Web portal for manual control of the oRover system                             |
-|option|[powercontrol](power)            |Shutdown control program to enable delayed power down                          |
-|user  |[service controller](controller) |One or more task controllers for e.g. vision, object recognition, path planning|
-|user  |[other actor](actor)             |One or more specific actors, e.g. grippers, docking                            |
-|user  |[sensor server](sensor)          |One or more sensor script, e.g. Lidar, ultrasonic, collision, temperature      |
+|os    |[systemd](systemd.md)               |OS-level scheduler that starts/stops launcher outside of oRover             |
+|oRover|[configuration](configuration.md)   |Configuration reference for active and optional sections                      |
+|oRover|[launcher](launcher.md)             |Process manager that starts/stops configured scripts                          |
+|oRover|[quick-start](quick-start.md)       |Shell wrappers for convenient startup and shutdown                            |
+|oRover|[ugv controller](ugv.md)            |Bridge that translates bus commands to ESP serial and maps serial feedback    |
+|oRover|[driver board](driverboard.md)      |UGV ESP microcontroller, sensors, and motor interfaces                        |
+|oRover|[event bus](eventbus.md)            |ZeroMQ XSUB/XPUB proxy for topic-based communication                          |
+|oRover|[enumeration](enumeration.md)       |Commands, states, events, and other enum definitions                          |
+|oRover|[robot controller](boss_server.md)  |Central state controller and pose/grid publisher                              |
+|oRover|[web portal](app.md)                |Flask/Socket.IO interface for monitoring and manual control                   |
+|oRover|[stop helper](stop.md)              |One-shot script publishing shutdown command                                   |
+|oRover|[enum uniqueness test](test_enum_name_uniqueness.md) |Regression test for duplicate enum member names                |
+|option|[powercontrol](power.md)            |Power-loss watchdog / delayed power-down helper                              |
+|option|future connectors                   |Optional integrations such as MQTT or external service bridges               |
 
 ## Logging Architecture
 

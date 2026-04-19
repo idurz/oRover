@@ -23,6 +23,27 @@ The T_code and the parameters can be found in the below table.
 
 Source of truth: [esp/include/json_cmd.h](../esp/include/json_cmd.h)
 
+## Currently used in `pi/ugv.py`
+
+### Outbound (Pi -> ESP serial)
+`pi/ugv.py` currently emits a focused subset of command JSON:
+- `{"T":1,"L":<left_speed>,"R":<right_speed>}` from `cmd_set_motor_speed`
+- `{"T":"126"}` from `cmd_getParam`
+- `{"T":3,"lineNum":2,"Text":"Rudi"}` from `cmd_setParam` (debug/example path)
+
+### Inbound (ESP -> Pi serial)
+`pi/ugv.py` consumes newline-delimited JSON and maps these typed payloads:
+- `T=1001` -> `state.battery` and `state.motion`
+- `T=1002` -> `state.motion`
+- `T=1003` -> `state.sensor_status` (`esp_now_recv`)
+- `T=1004` -> `state.sensor_status` (`esp_now_send`)
+- `T=1005` -> `state.sensor_status` (`servo_bus`)
+- `T=1051` -> `state.pose`
+- `T=139` -> `state.actuator_speed`
+
+Untyped JSON payloads (no `T`) are forwarded as `state.sensor_status` with
+channel classification (`wifi_status`, `system_status`, `serial_json_untyped`).
+
 ### UGV, module, IMU and feedback
 
 |Command|T_code|Parameters|Description|
@@ -159,3 +180,4 @@ Source of truth: [esp/include/json_cmd.h](../esp/include/json_cmd.h)
 |CMD_ESP_NOW_RECV|1003|mac, megs|ESP-NOW receive event.|
 |CMD_ESP_NOW_SEND|1004|mac, status, megs|ESP-NOW send status event.|
 |CMD_BUS_SERVO_ERROR|1005|id, status|Bus servo error feedback.|
+|ROARM_INFO_FEEDBACK|1051|x, y, z, b, s, e, t, torB, torS, torE, torH|RoArm position/torque feedback payload used by `RoArmM2_infoFeedback()`.|

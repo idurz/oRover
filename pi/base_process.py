@@ -119,7 +119,7 @@ class baseprocess:
         self.sub = self.create_sub_socket(self.ctx)
         while self.running:
             topicmsg = self.sub.recv_string()
-            result = self.handle_message(topicmsg)
+            self.handle_message(topicmsg)
 
     def get_lock(self):
         # Without holding a reference to our socket somewhere it gets garbage collected when the function exits
@@ -386,7 +386,6 @@ class baseprocess:
         if not self.valid_priority(msg['prio']):
             self.logger.error(f"Discarding message >>{msg['prio']}<< is not a valid priority")
             return False
-        #self.logger.debug(f"Validated message {msg}")
         return True
 
 
@@ -415,9 +414,9 @@ class baseprocess:
                 self.logger.error(f"Message : {msg['id']} discarded, no handler for reason {self.enum_to_name(reason)} available in {self.myname} server")
                 return None
             
-            result = handler_routine(msg)
-            self.logger.debug(f"Message handled : {msg}, result: {result}")
-            return result
+            handler_routine(msg)
+            self.logger.debug(f"Message handled : {msg}")
+            return
         finally:
             self.reset_log_guid(token)
     
@@ -441,4 +440,4 @@ class baseprocess:
             topicmsg = self.sub.recv_string()
             if topicmsg is None or topicmsg == "" or topicmsg is False or topicmsg is True:
                 continue
-            result = self.handle_message(topicmsg) 
+            self.handle_message(topicmsg) 

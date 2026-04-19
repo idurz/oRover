@@ -32,6 +32,17 @@ sudo apt install python3-flask
 
 Please follow link to [Technical Documentation](doc/technical%20documentation.md) for more information.
 
+## Start and stop
+
+From the `pi/` directory:
+
+```bash
+./start            # starts launcher.py in the background
+./stop             # sends cmd.shutdown through the event bus
+```
+
+Use `./start <config.ini>` or `./stop <config.ini>` to select another config file.
+
 ## 📂 Repository Structure
 - orover     main directory
   - demos    some test script and unfinished small stuff

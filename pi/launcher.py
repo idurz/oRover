@@ -27,6 +27,7 @@ class handler:
         shutdown_launcher()
         sys.exit(0)
 
+
 class base(baseprocess):
     # Signal handler for graceful shutdown of myself and child processes
     def terminate(self,signalNumber, frame):

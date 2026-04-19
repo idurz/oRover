@@ -136,6 +136,19 @@ def index():
     return render_template("index.html", heartbeat_interval=hb_interval)
 
 
+@app.route("/grid")
+def grid_view():
+    return render_template("grid.html")
+
+
+@app.route("/grid-data")
+def grid_data():
+    return jsonify({
+        "map": shared_state.get("map"),
+        "robot": shared_state.get("robot"),
+    })
+
+
 # ---------------------------
 # EXAMPLE HTTP route -> publish ZMQ
 # ---------------------------

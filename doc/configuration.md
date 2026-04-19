@@ -70,6 +70,7 @@ webrover = app.py
 | client_sub_socket | tcp://localhost:5555 | Endpoint where bus clients subscribe |
 | bus_xsub_socket | tcp://localhost:5556 | Eventbus XSUB connect target |
 | bus_xpub_socket | tcp://*:5555 | Eventbus XPUB bind target |
+| capture_message_ids | False | If enabled, eventbus logs message ids passing through proxy |
 
 See [eventbus.md](eventbus.md).
 
@@ -78,6 +79,7 @@ See [eventbus.md](eventbus.md).
 |---|---|---|
 | port | /dev/serial0 | Serial device used by `ugv.py` |
 | baudrate | 115200 | Serial speed |
+| timeout  | 0.1    | Serial read timeout in seconds |
 
 ### Section [powercontrol]
 | name | default | description |
@@ -91,8 +93,33 @@ See [power.md](power.md).
 | name | default | description |
 |---|---|---|
 | sensor1..sensorN | none | `name, triggerpin, echopin` sensor definition |
-| min_obj_distance | 20.0 | Distance threshold (cm) for object-detected event |
+| min_obj_distance | 20.0 | Distance threshold (cm) for object-detected event. Set this value to 0 to receive all
+messages regardless of distance |
 | polling_interval | 0.5 | Poll interval per sensor (seconds) |
+| echo_timeout | n/a (fixed 0.04 in code) | Config key present in `config.ini`, currently not consumed by `hcsr04.py` |
+| speed_of_sound | n/a (fixed 34300.0 in code) | Config key present in `config.ini`, currently not consumed by `hcsr04.py` |
+
+### Section [ugv]
+| name | default | description |
+|---|---|---|
+| linear_speed | 0.5 | Movement helper linear speed (m/s) |
+| angular_speed | 90.0 | Movement helper angular speed (deg/s) |
+| cmd_period | 0.1 | Command resend period (seconds) |
+
+### Section [boss]
+| name | default | description |
+|---|---|---|
+| snapshot_log_interval | 5.0 | Periodic navigation snapshot debug logging interval (seconds), `0` disables |
+| pose_publish_interval | 0.5 | Pose/state publish interval (seconds), `0` disables |
+| grid_size | 81 | Occupancy grid width/height in cells |
+| grid_resolution_m | 0.10 | Grid resolution in meters per cell |
+| grid_preview_size | 21 | Preview crop size used in published snapshots |
+| max_obstacle_range_m | 3.5 | Maximum obstacle range inserted into the grid |
+
+### Section [lister]
+| name | default | description |
+|---|---|---|
+| ignore_heartbeat | True | `listner.py` option to hide heartbeat topics |
 
 Sensor pins use BCM numbering. Sensor names should match known values from
 [enumeration.md](enumeration.md).

@@ -21,7 +21,7 @@ cd pi/
 1. Changes to the script directory
 2. Validates Python3 is available
 3. Checks the config file exists
-4. Launches `launcher.py` with the specified config
+4. Launches `launcher.py` with the specified config in the background
 
 ## `stop` Script
 Sends a graceful shutdown command to the running oRover system.
@@ -44,8 +44,8 @@ cd pi/
 ```bash
 cd /path/to/oRover/pi
 
-# Start the system in the background
-./start &
+# Start the system (script already backgrounds launcher)
+./start
 
 # Let it run...
 # System is now active. Other processes can:
@@ -56,8 +56,7 @@ cd /path/to/oRover/pi
 # When ready to stop from another terminal:
 ./stop
 
-# Or gracefully interrupt the foreground process:
-# Press Ctrl+C - launcher handles SIGTERM
+# If running launcher directly in foreground, Ctrl+C triggers termination handling.
 ```
 
 ## Requirements

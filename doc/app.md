@@ -14,6 +14,7 @@ clients:
 - `event_heartbeat(msg)`: updates heartbeat state and emits websocket updates
 - `state_battery(msg)`: emits battery voltage updates
 - `state_imu(msg)`: emits IMU updates
+- `state_pose(msg)`: accepts navigation snapshots from `orover_boss` and emits `nav_state`
 
 ## Control path
 Typical control flow:
@@ -21,6 +22,14 @@ Typical control flow:
 2. `app.py` maps action to wheel speeds
 3. `app.py` publishes a bus event (`orover.cmd.set_motor_speed`)
 4. Other components (for example `ugv.py`) consume and execute
+
+## HTTP routes currently exposed
+- `GET /` renders the main UI
+- `POST /publish` publishes a generic bus message
+- `GET /messages` returns recent in-memory messages
+- `POST /control` sends wheel speed commands
+- `POST /readroute` reads route input
+- `POST /route` receives route updates
 
 ## Config sections used
 - `[app]` for Flask host/port/template/static settings

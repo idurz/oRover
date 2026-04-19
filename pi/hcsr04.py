@@ -18,14 +18,12 @@ class ultrasonic(baseprocess):
             #Each sensor turn by turn
             for s in sensors:
                 distance = measure_distance(s['echopin'],s['triggerpin'])
-                if not distance is None and distance < object_notify_distance:
+                if not distance is None and (distance == 0 or distance < object_notify_distance):
                     self.send_event(src = s['sensorid']
                                           ,reason = orover.event.object_detected
                                           ,body = {"distance": distance})
                         
                 time.sleep(polling_interval)
-
-
 
 
 # Get sensor info from config.ini. Sensors should be defined in section hcsr04 as sensor1, sensor2, etc. with value "name, triggerpin, echopin"

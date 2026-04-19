@@ -1,0 +1,266 @@
+<!doctype html>
+<html>
+
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>oRover Navigation Grid</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  </head>
+
+  <body class="grid-page">
+    <div class="grid-shell">
+      <div class="grid-header">
+        <div>
+          <p class="grid-kicker">Navigation</p>
+          <h2>Occupancy Grid</h2>
+          <p class="grid-subtitle">Live preview of the navigation snapshot published on the event bus.</p>
+        </div>
+        <div class="page-link-row">
+          <a class="page-link" href="/">Back to Control Panel</a>
+        </div>
+      </div>
+
+      <div class="grid-layout">
+        <div class="status-box grid-container">
+          <canvas id="gridCanvas" width="720" height="720"></canvas>
+          <div class="grid-meta">
+            <div class="grid-stat-card">
+              <div class="grid-stat-label">Grid</div>
+              <div id="gridInfo" class="grid-stat-value">No grid data yet.</div>
+            </div>
+            <div class="grid-stat-card">
+              <div class="grid-stat-label">Robot</div>
+              <div id="robotInfo" class="grid-stat-value">Robot pose unavailable.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-sidebar">
+          <div class="status-box grid-legend">
+            <h3>Legend</h3>
+            <div class="legend-row">
+              <span class="legend-swatch legend-free"></span>
+              <span>Free space</span>
+            </div>
+            <div class="legend-row">
+              <span class="legend-swatch legend-unknown"></span>
+              <span>Observed / transitional</span>
+            </div>
+            <div class="legend-row">
+              <span class="legend-swatch legend-obstacle"></span>
+              <span>Obstacle</span>
+            </div>
+            <div class="legend-row">
+              <span class="legend-swatch legend-robot"></span>
+              <span>Robot position and heading</span>
+            </div>
+          </div>
+
+          <div class="status-box grid-legend">
+            <h3>Rendering</h3>
+            <p class="grid-note">The robot is centered in the preview. The arrow indicates heading, and the crosshair marks the preview origin.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script>
+      const canvas = document.getElementById("gridCanvas");
+      const ctx = canvas.getContext("2d");
+      const cssCanvasSize = 720;
+
+      function resizeCanvasForDisplay() {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = canvas.getBoundingClientRect();
+        const width = Math.max(1, Math.round(rect.width * dpr));
+        const height = Math.max(1, Math.round(rect.height * dpr));
+
+        if (canvas.width !== width || canvas.height !== height) {
+          canvas.width = width;
+          canvas.height = height;
+        }
+      }
+
+      function occupancyColor(value) {
+        if (value >= 0.8) return "#17212b";
+        if (value >= 0.2) return "#f4a261";
+        return "#f6f8fb";
+      }
+
+      function drawBackground(width, height) {
+        const bg = ctx.createLinearGradient(0, 0, width, height);
+        bg.addColorStop(0, "#fbfdff");
+        bg.addColorStop(1, "#edf2f7");
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, width, height);
+
+        ctx.save();
+        ctx.globalAlpha = 0.12;
+        ctx.fillStyle = "#8ecae6";
+        ctx.beginPath();
+        ctx.arc(width * 0.15, height * 0.2, width * 0.22, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = "#ffb703";
+        ctx.beginPath();
+        ctx.arc(width * 0.85, height * 0.82, width * 0.18, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawGridCells(map, width, height) {
+        const rows = map.length;
+        const cols = map[0].length;
+        const cellW = width / cols;
+        const cellH = height / rows;
+
+        for (let y = 0; y < rows; y++) {
+          for (let x = 0; x < cols; x++) {
+            const value = Number(map[y][x] || 0);
+            ctx.fillStyle = occupancyColor(value);
+            ctx.fillRect(x * cellW, y * cellH, cellW, cellH);
+          }
+        }
+
+        ctx.save();
+        ctx.strokeStyle = "rgba(34, 51, 68, 0.10)";
+        ctx.lineWidth = 1;
+        for (let x = 0; x <= cols; x++) {
+          ctx.beginPath();
+          ctx.moveTo(x * cellW, 0);
+          ctx.lineTo(x * cellW, height);
+          ctx.stroke();
+        }
+        for (let y = 0; y <= rows; y++) {
+          ctx.beginPath();
+          ctx.moveTo(0, y * cellH);
+          ctx.lineTo(width, y * cellH);
+          ctx.stroke();
+        }
+        ctx.restore();
+
+        return { rows, cols, cellW, cellH };
+      }
+
+      function drawCrosshair(width, height) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(33, 53, 71, 0.35)";
+        ctx.setLineDash([8, 6]);
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(width / 2, 0);
+        ctx.lineTo(width / 2, height);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, height / 2);
+        ctx.lineTo(width, height / 2);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawRobotMarker(robot, dims) {
+        const headingDeg = Number(robot?.[2] || 0);
+        const headingRad = (headingDeg - 90) * Math.PI / 180;
+        const centerX = (Math.floor(dims.cols / 2) + 0.5) * dims.cellW;
+        const centerY = (Math.floor(dims.rows / 2) + 0.5) * dims.cellH;
+        const radius = Math.max(8, Math.min(dims.cellW, dims.cellH) * 0.42);
+
+        ctx.save();
+        ctx.shadowColor = "rgba(217, 4, 41, 0.35)";
+        ctx.shadowBlur = 16;
+        ctx.fillStyle = "#d90429";
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+
+        ctx.save();
+        ctx.strokeStyle = "#ffffff";
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        ctx.moveTo(centerX, centerY);
+        ctx.lineTo(
+          centerX + Math.cos(headingRad) * radius * 2.2,
+          centerY + Math.sin(headingRad) * radius * 2.2,
+        );
+        ctx.stroke();
+        ctx.restore();
+
+        const tipX = centerX + Math.cos(headingRad) * radius * 2.2;
+        const tipY = centerY + Math.sin(headingRad) * radius * 2.2;
+        const leftX = tipX + Math.cos(headingRad + Math.PI * 0.8) * radius * 0.9;
+        const leftY = tipY + Math.sin(headingRad + Math.PI * 0.8) * radius * 0.9;
+        const rightX = tipX + Math.cos(headingRad - Math.PI * 0.8) * radius * 0.9;
+        const rightY = tipY + Math.sin(headingRad - Math.PI * 0.8) * radius * 0.9;
+
+        ctx.save();
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath();
+        ctx.moveTo(tipX, tipY);
+        ctx.lineTo(leftX, leftY);
+        ctx.lineTo(rightX, rightY);
+        ctx.closePath();
+        ctx.fill();
+        ctx.restore();
+      }
+
+      function drawFrame(width, height) {
+        ctx.save();
+        ctx.strokeStyle = "rgba(23, 33, 43, 0.18)";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(1.5, 1.5, width - 3, height - 3);
+        ctx.restore();
+      }
+
+      function renderGrid(map, robot) {
+        if (!Array.isArray(map) || map.length === 0 || !Array.isArray(map[0])) {
+          document.getElementById("gridInfo").textContent = "No grid data yet.";
+          return;
+        }
+
+        resizeCanvasForDisplay();
+        const width = canvas.width;
+        const height = canvas.height;
+
+        drawBackground(width, height);
+        const dims = drawGridCells(map, width, height);
+        drawCrosshair(width, height);
+        drawRobotMarker(robot, dims);
+        drawFrame(width, height);
+
+        document.getElementById("gridInfo").textContent = `${dims.rows} x ${dims.cols} cells`;
+        const x = Number(robot?.[0] || 0).toFixed(2);
+        const y = Number(robot?.[1] || 0).toFixed(2);
+        const h = Number(robot?.[2] || 0).toFixed(2);
+        document.getElementById("robotInfo").textContent = `Robot pose: x=${x} m, y=${y} m, heading=${h} deg`;
+      }
+
+      async function fetchGridData() {
+        try {
+          const response = await fetch('/grid-data');
+          if (!response.ok) return;
+          const data = await response.json();
+          renderGrid(data.map, data.robot);
+        } catch (e) {
+          console.error("grid-data fetch failed", e);
+        }
+      }
+
+      const socket = io();
+      socket.on("nav_state", (data) => {
+        const preview = data?.grid?.preview;
+        const robot = [
+          data?.pose?.x_m,
+          data?.pose?.y_m,
+          data?.pose?.heading_deg,
+        ];
+        renderGrid(preview, robot);
+      });
+
+      fetchGridData();
+      setInterval(fetchGridData, 2000);
+      window.addEventListener("resize", fetchGridData);
+    </script>
+  </body>
+</html>

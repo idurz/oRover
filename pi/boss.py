@@ -14,6 +14,111 @@ from base_process import baseprocess
 
 
 # ---------------------------------------------------------------------------
+# Message handlers
+# ---------------------------------------------------------------------------
+
+class handler:
+    """ Contains the handlers for BOSS messages. Each handler takes a message as input and returns a result string.
+        The handlers are called by the BOSS server when a message with the corresponding reason is received.
+        Handlers do not return a response to the sender, but can perform actions based on the message content,
+        like logging or sending new messages to the bus.
+    """
+
+    def event_heartbeat(self, msg):
+        global heartbeats
+        if "me" in msg and "ts" in msg:
+           heartbeats[msg["me"]] = msg["ts"]
+           p.logger.debug(f"Stored heartbeat from {msg['me']}")
+
+
+    def event_object_detected(self, message):
+        sensor = p.enum_to_name(message.get('src'))
+        body = message.get('body', {})
+        if "distance" not in body:
+            p.logger.warning(f"Discarded for sensor {sensor}: missing distance parameter in body")
+            return
+        d = body.get('distance', 0)
+        if d < 0:
+            p.logger.warning(f"Discarded for sensor {sensor}: distance {d} is negative")
+            return
+        update_grid_with_obstacle(sensor, d)
+
+
+    def state_motion(self, message):
+        body = message.get("body", {})
+        #p.nav_state_lock.acquire()
+        #try:
+        #    heading = _as_float(body.get("heading"))
+        #    left_speed = _as_float(body.get("left_speed"))
+        #    right_speed = _as_float(body.get("right_speed"))
+
+        #    p.nav_state["motion"] = {
+        #        "heading": heading,
+        #        "pitch": body.get("pitch"),
+        #        "roll": body.get("roll"),
+        #        "left_speed": left_speed,
+        #        "right_speed": right_speed,
+        #        "ts": message.get("ts"),
+        #    }
+        #
+        #    _update_pose_from_motion(heading, left_speed, right_speed)
+        #    p.nav_state["last_update_ts"] = message.get("ts")
+        #finally:
+        #    p.nav_state_lock.release()
+        return True
+
+
+    def state_battery(self, message):
+        body = message.get("body", {})
+        voltage = _as_float(body.get("voltage"))
+        if voltage is None:
+            return True
+        
+        #p.nav_state_lock.acquire()
+        #try:
+        #    p.nav_state["battery_voltage"] = voltage
+        #    p.nav_state["last_update_ts"] = message.get("ts")
+        #finally:
+        #    p.nav_state_lock.release()
+
+        # Recovery: clear low-battery flag once voltage returns above low threshold
+        if voltage >= p.battery_low_voltage:
+            if p.battery_low_warned:
+                p.logger.info("Battery voltage recovered to %.2fV (threshold %.2fV)", voltage, p.battery_low_voltage)
+            p.battery_low_warned = False
+            p.battery_shutdown_sent = False
+            return True
+
+        # Below shutdown threshold — send shutdown once
+        if voltage <= p.battery_shutdown_voltage and not p.battery_shutdown_sent:
+            p.logger.critical("Battery voltage %.2fV at or below shutdown threshold %.2fV — sending shutdown", voltage, p.battery_shutdown_voltage)
+            p.battery_shutdown_sent = True
+            p.battery_low_warned = True
+            p.send_event(
+                src=orover.origin.orover_boss,
+                reason=orover.cmd.shutdown,
+                body={"reason": "battery_critical", "voltage": voltage},
+            )
+            return True
+
+        # Below low threshold — warn once
+        if not p.battery_low_warned:
+            p.logger.warning("Battery voltage %.2fV below low threshold %.2fV — sending lowBattery event", voltage, p.battery_low_voltage)
+            p.battery_low_warned = True
+            p.send_event(
+                src=orover.origin.orover_boss,
+                reason=orover.event.lowBattery,
+                body={"voltage": voltage},
+            )
+
+        return True
+
+
+class base(baseprocess):
+    pass
+
+
+# ---------------------------------------------------------------------------
 # Navigation helper functions 
 # ---------------------------------------------------------------------------
 
@@ -24,21 +129,21 @@ def _as_float(value):
         return None
 
 
-def _update_pose_from_motion(heading, left_speed, right_speed):
-    now = time.time()
-    dt = max(0.0, now - p.nav_state["kinematics"]["last_time"])
-    p.nav_state["kinematics"]["last_time"] = now
+# def _update_pose_from_motion(heading, left_speed, right_speed):
+#     now = time.time()
+#     dt = max(0.0, now - p.nav_state["kinematics"]["last_time"])
+#     p.nav_state["kinematics"]["last_time"] = now
 
-    if heading is not None:
-        p.nav_state["pose"]["heading_deg"] = heading
+#     if heading is not None:
+#         p.nav_state["pose"]["heading_deg"] = heading
 
-    if left_speed is None or right_speed is None:
-        return
+#     if left_speed is None or right_speed is None:
+#         return
 
-    v = 0.5 * (left_speed + right_speed)
-    theta = math.radians(p.nav_state["pose"].get("heading_deg", 0.0) or 0.0)
-    p.nav_state["pose"]["x_m"] += v * dt * math.cos(theta)
-    p.nav_state["pose"]["y_m"] += v * dt * math.sin(theta)
+#     v = 0.5 * (left_speed + right_speed)
+#     theta = math.radians(p.nav_state["pose"].get("heading_deg", 0.0) or 0.0)
+#     p.nav_state["pose"]["x_m"] += v * dt * math.cos(theta)
+#     p.nav_state["pose"]["y_m"] += v * dt * math.sin(theta)
 
 
 def _sensor_to_angle_rad(sensor_name):
@@ -62,17 +167,17 @@ def _world_to_grid(x_m, y_m):
 def _mark_cell(gx, gy, value):
     size = p.nav_state["grid"]["size"]
     if 0 <= gx < size and 0 <= gy < size:
-        p.nav_state["grid"]["cells"][gy][gx] = value
+    p.nav_state["grid"]["cells"][gy][gx] = value
 
 
-def _update_grid_with_obstacle(src, distance_cm):
+def update_grid_with_obstacle(src, distance_cm):
+    # Obstacle detected by sensor at given distance. Update the occupancy grid with the obstacle position.
     d_cm = _as_float(distance_cm)
     if d_cm is None or d_cm <= 0:
         return
 
-    d_m = d_cm / 100.0
-    max_range = p.nav_state["grid"]["max_obstacle_range_m"]
-    if d_m > max_range:
+    d_m = d_cm / 100.0 # Convert cm to m
+    if d_m > p.config.getfloat("boss", "max_obstacle_range_m", fallback=3.5):
         return
 
     sensor_name = p.enum_to_name(src) or ""
@@ -80,7 +185,7 @@ def _update_grid_with_obstacle(src, distance_cm):
     theta = math.radians(heading_deg) + _sensor_to_angle_rad(sensor_name.lower())
 
     x0 = p.nav_state["pose"]["x_m"]
-    y0 = p.nav_state["pose"]["y_m"]
+    y0 = p.nav_state["pose"]["y_m"] 
     x1 = x0 + d_m * math.cos(theta)
     y1 = y0 + d_m * math.sin(theta)
 
@@ -135,11 +240,11 @@ def publish_pose_loop(interval_s):
         finally:
             p.nav_state_lock.release()
 
-        p.send_event(
-            src=orover.origin.orover_boss,
-            reason=orover.state.pose,
-            body=payload,
-        )
+    #    p.send_event(
+    #        src=orover.origin.orover_boss,
+    ##        reason=orover.state.pose,
+    #        body=payload,
+    #    )
 
 
 def snapshot_logger_loop(log_interval_s):
@@ -165,107 +270,9 @@ def snapshot_logger_loop(log_interval_s):
             p.nav_state_lock.release()
 
 
-# ---------------------------------------------------------------------------
-# Message handlers
-# ---------------------------------------------------------------------------
-
-class handler:
-    """ Contains the handlers for BOSS messages. Each handler takes a message as input and returns a result string.
-        The handlers are called by the BOSS server when a message with the corresponding reason is received.
-        Handlers do not return a response to the sender, but can perform actions based on the message content,
-        like logging or sending new messages to the bus.
-
-        Each message is expected to have the following structure:
-
-            "id"    : UUID
-           ,"ts"    : datetime of message in '%Y-%m-%dT%H:%M:%S.%f' format
-           ,"src"   : message source, e.g. specific sensor or actuator, should be in class origin
-           ,"me"    : sending script name
-           ,"host"  : sending node
-           ,"prio"  : priority of message, should be in class origin, state, event, origin, actuator, controller, priority, cmd
-           ,"reason": type of message, should be in class origin, state, event, origin, actuator, controller, priority, cmd
-           ,"body"  : JSON; contains parameters depending on type of message
-    """
-
-    def event_heartbeat(self, msg):
-        global heartbeats
-        if "me" in msg and "ts" in msg:
-           heartbeats[msg["me"]] = msg["ts"]
-           p.logger.debug(f"Stored heartbeat from {msg['me']}")
-        return True
-
-
-    def event_object_detected(self, message):
-        sensor = p.enum_to_name(message.get('src'))
-        body = message.get('body', {})
-        if "distance" not in body:
-            p.logger.warning(f"Discarded for sensor {sensor}: missing distance parameter in body")
-            return False
-
-        d = body.get('distance', 0)
-        if d < 0:
-            p.logger.warning(f"Discarded for sensor {sensor}: distance {d} is negative")
-            return False
-
-        p.nav_state_lock.acquire()
-        try:
-            p.nav_state["obstacles"][str(sensor)] = {
-                "distance": d,
-                "ts": message.get("ts"),
-            }
-            _update_grid_with_obstacle(message.get('src'), d)
-            p.nav_state["last_update_ts"] = message.get("ts")
-        finally:
-            p.nav_state_lock.release()
-
-        #print(f"BOSS: Warning: object too close to sensor {sensor} distance {d} cm")
-        return True
-
-
-    def state_motion(self, message):
-        body = message.get("body", {})
-        p.nav_state_lock.acquire()
-        try:
-            heading = _as_float(body.get("heading"))
-            left_speed = _as_float(body.get("left_speed"))
-            right_speed = _as_float(body.get("right_speed"))
-
-            p.nav_state["motion"] = {
-                "heading": heading,
-                "pitch": body.get("pitch"),
-                "roll": body.get("roll"),
-                "left_speed": left_speed,
-                "right_speed": right_speed,
-                "ts": message.get("ts"),
-            }
-
-            _update_pose_from_motion(heading, left_speed, right_speed)
-            p.nav_state["last_update_ts"] = message.get("ts")
-        finally:
-            p.nav_state_lock.release()
-        return True
-
-
-    def state_battery(self, message):
-        body = message.get("body", {})
-        p.nav_state_lock.acquire()
-        try:
-            p.nav_state["battery_voltage"] = body.get("voltage")
-            p.nav_state["last_update_ts"] = message.get("ts")
-        finally:
-            p.nav_state_lock.release()
-        return True
-
-
-class base(baseprocess):
-    pass
-
-
 #### Main execution starts here ####
 if __name__ == "__main__":
-
     heartbeats = {}
-
     h = handler()
     p = base(handler=h)
 
@@ -306,5 +313,11 @@ if __name__ == "__main__":
     publish_interval = p.config.getfloat("boss", "pose_publish_interval", fallback=0.5)
     if publish_interval > 0:
         threading.Thread(target=publish_pose_loop, args=(publish_interval,), daemon=True).start()
+
+    # Battery protection state
+    p.battery_low_voltage = p.config.getfloat("boss", "battery_low_voltage", fallback=3.5)
+    p.battery_shutdown_voltage = p.config.getfloat("boss", "battery_shutdown_voltage", fallback=3.2)
+    p.battery_low_warned = False
+    p.battery_shutdown_sent = False
 
     p.run()

@@ -8,6 +8,15 @@ body {
     margin: 24px;
 }
 
+body.grid-page {
+    margin: 0;
+    color: #14213d;
+    background:
+        radial-gradient(circle at top left, rgba(142, 202, 230, 0.25), transparent 32%),
+        radial-gradient(circle at bottom right, rgba(255, 183, 3, 0.22), transparent 28%),
+        linear-gradient(180deg, #f8fbff 0%, #eef3f8 100%);
+}
+
 .controls { 
     display:flex; 
     gap:10px; 
@@ -42,4 +51,177 @@ body {
     font-size:20px; 
     font-weight:600; 
     margin-top:6px; 
+}
+
+.page-link-row {
+    margin: 8px 0 18px;
+}
+
+.page-link {
+    display: inline-block;
+    padding: 8px 12px;
+    border: 1px solid #888;
+    border-radius: 6px;
+    text-decoration: none;
+    color: #1f2937;
+    background: #f3f4f6;
+}
+
+.grid-container {
+    max-width: none;
+    margin: 0;
+    padding: 18px;
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: 0 18px 48px rgba(31, 41, 55, 0.08);
+}
+
+#gridCanvas {
+    width: 100%;
+    height: auto;
+    display: block;
+    border: 1px solid rgba(20, 33, 61, 0.14);
+    border-radius: 14px;
+    background: #fff;
+}
+
+.grid-meta {
+    margin-top: 12px;
+    text-align: left;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.grid-shell {
+    max-width: 1320px;
+    margin: 0 auto;
+    padding: 40px 24px 56px;
+}
+
+.grid-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 20px;
+    margin-bottom: 24px;
+}
+
+.grid-kicker {
+    margin: 0 0 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 12px;
+    color: #5c677d;
+}
+
+.grid-subtitle {
+    margin: 10px 0 0;
+    max-width: 52ch;
+    color: #526074;
+}
+
+.grid-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.45fr) minmax(280px, 0.7fr);
+    gap: 24px;
+    align-items: start;
+}
+
+.grid-sidebar {
+    display: grid;
+    gap: 16px;
+}
+
+.grid-legend {
+    text-align: left;
+    padding: 18px;
+    background: rgba(255, 255, 255, 0.78);
+    box-shadow: 0 14px 38px rgba(31, 41, 55, 0.06);
+}
+
+.grid-legend h3 {
+    margin-top: 0;
+    margin-bottom: 14px;
+}
+
+.legend-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.legend-row:last-child {
+    margin-bottom: 0;
+}
+
+.legend-swatch {
+    width: 18px;
+    height: 18px;
+    border-radius: 5px;
+    flex: 0 0 auto;
+    border: 1px solid rgba(20, 33, 61, 0.12);
+}
+
+.legend-free {
+    background: #f6f8fb;
+}
+
+.legend-unknown {
+    background: #f4a261;
+}
+
+.legend-obstacle {
+    background: #17212b;
+}
+
+.legend-robot {
+    background: #d90429;
+}
+
+.grid-note {
+    margin: 0;
+    line-height: 1.55;
+    color: #526074;
+}
+
+.grid-stat-card {
+    padding: 14px 16px;
+    border-radius: 12px;
+    background: rgba(244, 247, 251, 0.95);
+    border: 1px solid rgba(20, 33, 61, 0.08);
+}
+
+.grid-stat-label {
+    margin-bottom: 6px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: #6b7280;
+}
+
+.grid-stat-value {
+    font-size: 15px;
+    font-weight: 600;
+    color: #14213d;
+}
+
+@media (max-width: 960px) {
+    .grid-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .grid-header {
+        flex-direction: column;
+    }
+}
+
+@media (max-width: 640px) {
+    .grid-shell {
+        padding: 24px 14px 40px;
+    }
+
+    .grid-meta {
+        grid-template-columns: 1fr;
+    }
 }
