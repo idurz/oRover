@@ -1,5 +1,21 @@
 # Changelog - oRover (as of 2026-04-17)
 
+## Update 2026-06-02
+
+### Route payload integration for moveTo/moveRoute
+**Files Modified:** `pi/ugv.py`, `pi/app.py`
+
+- Added route execution flow in `ugv.py` so `moveTo` can forward route payloads to `cmd_moveRoute` and execute route steps sequentially.
+- Added `move_route(...)` and shared segment execution helper logic so each route line is executed in order and the next line starts when the previous one completes.
+- Made route parsing in `cmd_moveTo` and `cmd_moveRoute` tolerant to multiple payload shapes:
+	- `body.route` (preferred)
+	- `body` as list
+	- top-level `route`
+- Added guard behavior for invalid `body` types in `cmd_moveTo` to avoid `.get(...)` failures on non-dict payloads.
+- Updated `app.py` route command builder (`rx_commands`) to generate message-shaped JSON with `id` and `body.route` instead of a plain `route` object.
+
+---
+
 ## Update 2026-04-17
 
 ### Navigation merged into boss.py — navigation.py made obsolete

@@ -1,6 +1,8 @@
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
 import oroverlib as orover
+import json
+import uuid
 import threading
 import csv
 from base_process import baseprocess, handler
@@ -100,8 +102,39 @@ class base(baseprocess):
 
 
 def rx_commands():
-    # Placeholder for future command execution from CSV
-    print("Done.")
+    #open file and fill commands
+    commands.clear()
+    route_payload = {"id": str(uuid.uuid4()), "body": {"route": []}}
+    with open("commands.csv", "r") as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            route_payload["body"]["route"].append({
+                "distance": float(row["distance"]),
+                "angle": float(row["angle"]),
+            })
+
+    commands.append(route_payload)
+
+#    ser = serial.Serial(UART_PORT, BAUDRATE, timeout=1)
+    #time.sleep(2)  # allow UART to settle
+
+    #execute commands
+    #for step in commands[0]["route"]:
+    #    distance = step.get("distance")
+    #    angle = step.get("angle")
+    #    print(f"Driving {distance} m")
+#        drive_straight(ser, distance)                       ombouwen naar socket
+
+    #    time.sleep(0.5)
+
+    #    print(f"Turning {angle} degrees")
+ #       rotate(ser, angle)                                 ombouwen naar socket
+
+    print(json.dumps(commands[0]))
+    p.send_event(src=orover.controller.remote_interface,
+                 reason=orover.cmd.moveTo,
+                    body=commands[0])
+
 
 
 ###########################################################################
