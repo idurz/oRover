@@ -14,14 +14,23 @@ The process is a `baseprocess` client with a custom main loop:
 The handler class currently exposes these command entry points:
 - `cmd_move(message)`
 - `cmd_moveTo(message)`
+- `cmd_moveRoute(message)`
 - `cmd_getParam(message)`
 - `cmd_setParam(message)`
 - `cmd_set_motor_speed(message)`
+- `event_obstacleDetected(message)`
 
 The most used command path is motor control:
 - incoming bus command `cmd.set_motor_speed`
 - serialized to ESP32 JSON `{"T":1,"L":<left>,"R":<right>}`
 - written to serial with trailing newline
+
+Route/motion behavior:
+- `cmd_move` creates a one-step route with explicit wheel speeds and no end condition
+- `cmd_moveTo` creates a one-step route with `distance` and `angle`
+- `cmd_moveRoute` validates and executes `body.route` sequentially
+- route execution runs in a worker thread (`move_rover_thread`) and processes each segment through `_move_segment`
+- `cmd_set_motor_speed` updates default linear/angular speeds used for later movement helpers
 
 ## Serial receive format
 ESP32 serial output is handled as newline-delimited frames.

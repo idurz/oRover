@@ -30,6 +30,7 @@ Parameters are specified in the `[orover]` section of `config.ini`:
 | logformat | %(asctime)s %(name)-8s %(levelname)-9s guid=%(guid)s %(message)s | Format string for log output |
 | logdatefmt | %Y-%m-%d %H:%M:%S | Date format used in log timestamps |
 | loglevel | DEBUG | Minimum log level to record (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
+| writerecordtoconsole | False | If True, each received log record is also printed to stdout as LOGGER: <message> |
 
 Example:
 ```
@@ -40,6 +41,7 @@ max_logfiles = 10
 loglevel = DEBUG
 logformat = %(asctime)s %(name)-8s %(levelname)-9s guid=%(guid)s %(message)s
 logdatefmt = %Y-%m-%d %H:%M:%S
+writerecordtoconsole = False
 ```
 
 ## Structured logging and message correlation

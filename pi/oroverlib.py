@@ -140,12 +140,13 @@ class cmd(IntEnum):
 
     move                               = 4100
     moveTo                             = 4101
-    rotate                             = 4102
-    setVelocity                        = 4103
-    stopMotion                         = 4104
-    dock                               = 4105
-    undock                             = 4106
-    set_motor_speed                    = 4107
+    moveRoute                          = 4102
+    rotate                             = 4103
+    setVelocity                        = 4104
+    stopMotion                         = 4105
+    dock                               = 4106
+    undock                             = 4107
+    set_motor_speed                    = 4108
 
     setPosition                        = 4200
     setSpeed                           = 4201

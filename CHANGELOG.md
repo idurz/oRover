@@ -1,4 +1,30 @@
-# Changelog - oRover (as of 2026-04-17)
+# Changelog - oRover (as of 2026-06-03)
+
+## Update 2026-06-03
+
+### Motion routing and command enum updates
+**Files Modified:** `pi/app.py`, `pi/ugv.py`, `pi/oroverlib.py`
+
+- Added `cmd.moveRoute` enum value and shifted subsequent motion command ids by +1.
+- Updated web route ingestion (`/route`, `/readroute`) to build and publish a route payload with route id plus ordered `distance`/`angle` steps.
+- Added `cmd_moveRoute` handling in `ugv.py` with route validation before execution.
+- Refactored movement execution into route/segment helpers (`move_rover_thread`, `_move_segment`) so route steps run sequentially.
+- Updated `cmd_set_motor_speed` to refresh default movement speeds used by movement helpers.
+
+### Logging and runtime tuning
+**Files Modified:** `pi/logserver.py`, `pi/config.ini`
+
+- Added `[orover].writerecordtoconsole` to optionally mirror received log records to stdout from logserver.
+- Tuned movement and navigation cadence defaults in config:
+	- `[ugv].cmd_period = 0.2`
+	- `[boss].snapshot_log_interval = 0.0` (disable periodic snapshot logs)
+
+### Documentation synchronization
+**Files Modified:** `doc/app.md`, `doc/ugv.md`, `doc/enumeration.md`, `doc/logserver.md`, `doc/configuration.md`
+
+- Updated docs to reflect moveRoute publishing/execution flow, new command name, logserver console mirroring option, and current config defaults.
+
+---
 
 ## Update 2026-06-02
 

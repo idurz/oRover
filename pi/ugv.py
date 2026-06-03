@@ -27,51 +27,85 @@ class handler:
     """
     def __init__(self):
         self.ismoving = False # Checks if robot is currently moving, to prevent sending multiple movement commands at the same time. 
-        self.routetogo = None # Stores the current route to follow for moveTo commands, which can be used to implement obstacle avoidance or dynamic path replanning in the future.
+        #self.routetogo = None # Stores the current route to follow for moveTo commands, which can be used to implement obstacle avoidance or dynamic path replanning in the future.
+    
+    def _route_check(self, route):
+        # Check if route is valid, meaning it is a list of segments with valid distance and angle parameters. 
+        if not isinstance(route, list) or not route:
+            return False
+        for step in route:
+            if not isinstance(step, dict):
+                return False
+            if "distance" not in step and "angle" not in step:
+                b.logger.error(f"Route step {step} is missing distance or angle parameter") 
+                return False
+            if "distance" in step and not isinstance(step["distance"], (int, float)):
+                b.logger.error(f"Route step {step} has invalid distance parameter")
+                return False
+            if "angle" in step and not isinstance(step["angle"], (int, float)):
+                b.logger.error(f"Route step {step} has invalid angle parameter")
+                return False
+        return True
 
-    def _start_motion(self, target, *args, **kwargs):
+    def _start_motion(self, *args, **kwargs):
         self.ismoving = True
-        print(f"Starting motion with target {target.__name__} and args {args} kwargs {kwargs}")
-        self.mv_thread = threading.Thread(target=target, args=args, kwargs=kwargs, daemon=True)
+        self.mv_thread = threading.Thread(target=ugv.move_rover_thread, args=args, kwargs=kwargs, daemon=True)
         self.mv_thread.start()
 
     def cmd_move(self,message):
-        # Handle move command, expects body to contain "left_speed" and "right_speed" parameters, which are the speeds for the left and right wheels in m/s        
+        # Handle move command, expects body to contain "left_speed" and "right_speed" parameters, 
+        # which are the speeds for the left and right wheels in m/s. This action will nog stop until 
+        # a stop command is received, or another move command is received while already moving. 
+        # 
+        # A move is a route with one segment with the given speeds, and no distance or angle limit. 
+        # The robot should keep sending motor commands
+        route = None
         if self.ismoving:
             b.logger.warning("cmd_move ignored: robot is already moving")
             return False
         body = message.get('body') or {}
-        left_speed  = body.get('left_speed',  ugv.linear_speed)
-        right_speed = body.get('right_speed', ugv.linear_speed)
-        self._start_motion(ugv.move_rover, left_speed, right_speed)
+        if "left_speed" not in body:
+            b.logger.warning(f"cmd_move received without left_speed parameter in body, defaulting to 0")
+            left_speed = self.linear_speed
+        else:
+            left_speed = body.get('left_speed')
+        if "right_speed" not in body:
+            b.logger.warning(f"cmd_move received without right_speed parameter in body, defaulting to 0")
+            right_speed = self.linear_speed
+        else:
+            right_speed = body.get('right_speed')  
+        route = [{"left_speed": left_speed, "right_speed": right_speed, "distance": None, "angle": None}]
+        b.logger.debug(f"cmd_move starting motion with route {route}")
+        self._start_motion(route)
 
     def cmd_moveTo(self,message):
-        # Handle moveTo command, expects body to contain "distance" and "angle" parameters, which are the distance in m and angle in degrees to move relative to current position. 
-        # The robot should calculate the required wheel speeds and durations to achieve the desired movement, and send the appropriate motor commands to the serial port.        
+        # Handle moveTo command, expects body to contain "distance" and "angle" parameters, which are the distance in meters 
+        # and angle in degrees to move relative to current position. The robot should calculate the required wheel speeds 
+        # and durations to achieve the desired movement, and send the appropriate motor commands to the serial port. 
+        # 
+        # A moveTo is a route with one segment with the given distance and angle, and default speeds. 
+        route = None
         if self.ismoving:
             b.logger.warning("cmd_moveTo ignored: robot is already moving")
             return False
         body = message.get('body') or {}
-        route = None
-        if isinstance(body, dict):
-            route = body.get('route')
-        elif isinstance(body, list):
-            route = body
-        if route is None and isinstance(message, dict):
-            route = message.get('route')
-        print(f"cmd_moveTo received with body {body} and route {route}")
-        
-        if isinstance(route, list):
-            return self.cmd_moveRoute(message)
-       
-        if not isinstance(body, dict):
-            b.logger.warning(f"cmd_moveTo ignored: invalid body type {type(body).__name__} in message {message.get('id')}")
-            return False
 
-        print(f"cmd_moveTo received with body {body}")
-        distance = body.get('distance')
-        angle    = body.get('angle')
-        self._start_motion(ugv.move_rover, ugv.linear_speed, ugv.linear_speed, distance=distance, angle=angle)
+        # check for distance and angle parameters in body, and use default values if not provided
+        if "distance" not in body:
+            b.logger.warning(f"cmd_moveTo received without distance parameter in body, defaulting to 0")
+            distance = 0
+        else:
+            distance = body.get('distance')
+
+        if "angle" not in body:
+            b.logger.warning(f"cmd_moveTo received without angle parameter in body, defaulting to 0")
+            angle = 0
+        else:
+            angle = body.get('angle')
+
+        route = [{"distance": distance, "angle": angle}]
+        b.logger.debug(f"cmd_moveTo starting motion with route {route}")
+        self._start_motion(route)
 
     def cmd_moveRoute(self, message):
         # Handle route command, expects body to contain a route list with distance/angle steps.
@@ -80,24 +114,37 @@ class handler:
             b.logger.warning("cmd_moveRoute ignored: robot is already moving")
             return False
         body = message.get('body') or {}
-        route = None
-        if isinstance(body, dict):
-            route = body.get('route')
-        elif isinstance(body, list):
-            route = body
-        if route is None and isinstance(message, dict):
-            route = message.get('route')
+        if "id" not in body:
+            b.logger.warning(f"cmd_moveRoute received without id parameter in body, defaulting to unknown")
+            route_id = "unknown"
+        else:
+            route_id = body.get("id")
+
+        route = body.get("route") or []
         if not isinstance(route, list) or not route:
-            b.logger.warning(f"cmd_moveRoute ignored: invalid or empty route in message {message.get('id')}")
+            b.logger.warning(f"cmd_moveRoute ignored: route {route_id} has invalid or empty route in message {message.get('id')}")
             return False
-        self.routetogo = route
-        self._start_motion(ugv.move_route, ugv.linear_speed, ugv.linear_speed, route=route)
+        if not self._route_check(route):
+            b.logger.warning(f"cmd_moveRoute ignored: route {route_id} contains invalid steps in message {message.get('id')}")
+            return False
+        
+        b.logger.debug(f"cmd_moveRoute id {route_id} starting motion with route {route}")
+        self._start_motion(route)
 
-    # def obstakel
+    def event_obstacleDetected(self, message):
+        # Handle obstacle detected event, expects body to contain "distance" and "angle" parameters, which are the distance 
+        # in meters and angle in degrees to the detected obstacle relative to the robot. 
+        if not self.ismoving:
+            b.logger.warning("event_obstacleDetected received but robot is not moving, ignoring")
+            return False
+        body = message.get('body') or {}
+        distance = body.get('distance')
+        angle = body.get('angle')
+        b.logger.info(f"Obstacle detected at distance {distance} m and angle {angle} deg, NO ACTION TAKEN (obstacle avoidance not implemented yet)")
+        return True
 
-    # Retrieve IMU Data {"T":126} Used to obtain IMU information, including heading angle, geomagnetic field, acceleration, attitude, temperature, etc.
     def cmd_getParam(self,message):
-        # Retrieve IMU Data
+        # Retrieve IMU Data {"T":126} Used to obtain IMU information, including heading angle, geomagnetic field, acceleration, attitude, temperature, etc.
         b.logger.debug(f"cmd_getParam -> {message}")
         s = json.dumps({"T":"126"})
         ugv.write_serial(s)
@@ -117,6 +164,9 @@ class handler:
             return False
         # body={"left_speed": left_speed, "right_speed": right_speed})
         s = json.dumps({"T":1,"L":body.get("left_speed"),"R":body.get("right_speed")})
+        # set this speed as default for move and moveTo commands, until another speed command is received
+        ugv.linear_speed = body.get("left_speed")
+        ugv.angular_speed = body.get("right_speed")
         ugv.write_serial(s)
 
 
@@ -325,67 +375,56 @@ class ugv:
             b.logger.debug(f"Writing to serial port: {s}")
             ugv.serial_port.write(s.encode())
 
-    def move_rover(self,left_speed, right_speed, angle = None, distance = None):
-        # This function calculates the required motor commands to move the robot forward with the given speeds, 
-        # and optionally rotate by a certain angle or move a certain distance. If angle or distance is provided, 
-        # the function calculates the required duration for the movement and send the appropriate (multiple) motor commands
-        print(f"move_rover called with left_speed={left_speed}, right_speed={right_speed}, angle={angle}, distance={distance}")
-        try:
-            if distance is not None or angle is not None:
-                self._move_segment(left_speed, right_speed, angle=angle, distance=distance)
-
-            if distance is None and angle is None:
-                # Continuous movement: keep sending motor commands until ismoving is cleared
-                while h.ismoving:
-                    self._write(left_speed, right_speed)
-                    time.sleep(self.cmd_period)
-        finally:
-            self._stop()
-
-    def move_route(self, left_speed, right_speed, route):
-        try:
-            for step in route or []:
-                if not h.ismoving:
-                    break
-                distance, angle = self._route_step_values(step)
-                if distance is None and angle is None:
-                    continue
-                self._move_segment(left_speed, right_speed, angle=angle, distance=distance)
-        finally:
-            self._stop()
-
-    def _route_step_values(self, step):
-        if isinstance(step, dict):
-            return step.get("distance"), step.get("angle")
-        if isinstance(step, (list, tuple)):
-            if len(step) == 0:
-                return None, None
-            if len(step) == 1:
-                return step[0], None
-            return step[0], step[1]
-        return None, None
-
-    def _move_segment(self, left_speed, right_speed, angle=None, distance=None):
-        print(f"_move_segment called with left_speed={left_speed}, right_speed={right_speed}, angle={angle}, distance={distance}")
+    def _move_segment(self, left_speed = 0, right_speed = 0, distance=None, angle=None):
+        b.logger.debug(f"_move_segment called with left_speed={left_speed}, right_speed={right_speed},   angle={angle}, distance={distance}")
+    
         if distance is not None:
             # Drive straight for a calculated duration based on LINEAR_SPEED
             direction = 1.0 if distance >= 0 else -1.0
             duration = abs(distance) / self.linear_speed
             start = time.time()
             while time.time() - start < duration:
-                print(f"Moving straight for distance {distance} m at speed {self.linear_speed} m/s, duration {duration:.2f} s; time elapsed {time.time() - start:.2f} s")
+                b.logger.debug(f"Moving straight for distance {distance} m at speed {self.linear_speed} m/s, duration {duration:.2f} s; time elapsed {time.time() - start:.2f} s")
                 self._write(left_speed * direction, right_speed * direction)
                 time.sleep(self.cmd_period)
-
+        
         if angle is not None:
             # Rotate in-place for a calculated duration based on ANGULAR_SPEED
             direction = 1.0 if angle >= 0 else -1.0
             duration = abs(angle) / self.angular_speed
             start = time.time()
             while time.time() - start < duration:
-                print(f"Rotating in-place for angle {angle} deg at speed {self.angular_speed} deg/s, duration {duration:.2f} s; time elapsed {time.time() - start:.2f} s")
+                b.logger.debug(f"Rotating in-place for angle {angle} deg at speed {self.angular_speed} deg/s, duration {duration:.2f} s; time elapsed {time.time() - start:.2f} s")
                 self._write(-left_speed * direction, right_speed * direction)
                 time.sleep(self.cmd_period)
+        
+        if distance is None and angle is None:
+            # No distance or angle limit, keep sending the same speed command until another command is received or stop command is received.
+            b.logger.debug(f"Moving with left_speed={left_speed} and right_speed={right_speed} indefinitely until next command")
+            while self.ismoving:
+                #self._write(left_speed, right_speed)
+                time.sleep(self.cmd_period)
+                
+    def move_rover_thread(self,route):
+        # This function calculates the required motor commands to move the robot forward with the given speeds, 
+        # and optionally rotate by a certain angle or move a certain distance. If angle or distance is provided, 
+        # the function calculates the required duration for the movement and send the appropriate (multiple) motor commands
+        # a route is a list of segments, where each segment has a distance and angle to move, and the robot should execute them sequentially.
+        b.logger.debug(f"move_rover_thread called with route={route}")
+        for step in route or []:
+            if not h.ismoving:
+                b.logger.debug("move_rover_thread stopping early because ismoving was cleared")
+                break
+            if "left_speed" not in step:
+                step["left_speed"] = self.linear_speed
+            if "right_speed" not in step:
+                step["right_speed"] = self.linear_speed
+            if "distance" not in step:
+                step["distance"] = None
+            if "angle" not in step:                   
+                step["angle"] = None
+            self._move_segment(step.get("left_speed"), step.get("right_speed"), step.get("distance"), step.get("angle"))
+        self._stop()
 
     def _write(self, left, right):
         cmd = json.dumps({"T": 1, "L": round(left, 2), "R": round(right, 2)}) + "\n"

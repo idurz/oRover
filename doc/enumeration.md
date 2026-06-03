@@ -124,6 +124,7 @@ This section contains the known enumerations and the explanation
 | reset                      | Reset the robot's state, clearing any errors or faults and returning to a known baseline condition |
 | move                       | Move the robot in a specified direction and distance, typically used for navigation and positioning |
 | moveTo                     | Move the robot to a specific location or coordinate                  |
+| moveRoute                  | Move the robot using a route list with sequential distance/angle steps |
 | rotate                     | Rotate the robot by a specified angle                                |
 | setVelocity                | Set the robot's velocity                                             |
 | stopMotion                 | Stop all motion of the robot                                         |

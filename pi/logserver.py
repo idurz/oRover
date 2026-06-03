@@ -84,6 +84,10 @@ class LogRecordStreamHandler(socketserver.StreamRequestHandler):
                 chunk = chunk + self.connection.recv(slen - len(chunk))
             obj = self.unPickle(chunk)
             record = logging.makeLogRecord(obj)
+            
+            if b.config.getboolean("orover", "writerecordtoconsole", fallback=False):
+                print(f"LOGGER: {record.getMessage()}")
+
             self.handleLogRecord(record)
 
 

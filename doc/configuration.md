@@ -38,6 +38,7 @@ name = value
 | max_logfiles | 10 | Maximum number of log files to retain; older files are automatically deleted |
 | logformat | %(asctime)s %(name)-8s %(levelname)-9s guid=%(guid)s %(message)s | Log format string; includes guid for message tracing |
 | logdatefmt | %Y-%m-%d %H:%M:%S | Date format used in logs |
+| writerecordtoconsole | False | Tells logserver to also print each record to console |
 
 ### Section [app]
 | name | default | description |
@@ -102,15 +103,15 @@ messages regardless of distance |
 ### Section [ugv]
 | name | default | description |
 |---|---|---|
-| linear_speed | 0.5 | Movement helper linear speed (m/s) |
-| angular_speed | 90.0 | Movement helper angular speed (deg/s) |
-| cmd_period | 0.1 | Command resend period (seconds) |
+| linear_speed | 0.3 | Movement helper linear speed (m/s) |
+| angular_speed | 45.0 | Movement helper angular speed (deg/s) |
+| cmd_period | 0.2 | Command resend period (seconds) |
 
 ### Section [boss]
 | name | default | description |
 |---|---|---|
-| snapshot_log_interval | 5.0 | Periodic navigation snapshot debug logging interval (seconds), `0` disables |
-| pose_publish_interval | 0.5 | Pose/state publish interval (seconds), `0` disables |
+| snapshot_log_interval | 0.0 | Periodic navigation snapshot debug logging interval (seconds), `0` disables |
+| pose_publish_interval | 30 | Pose/state publish interval (seconds), `0` disables |
 | grid_size | 81 | Occupancy grid width/height in cells |
 | grid_resolution_m | 0.10 | Grid resolution in meters per cell |
 | grid_preview_size | 21 | Preview crop size used in published snapshots |
