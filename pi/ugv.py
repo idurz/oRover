@@ -402,7 +402,7 @@ class ugv:
             # No distance or angle limit, keep sending the same speed command until another command is received or stop command is received.
             b.logger.debug(f"Moving with left_speed={left_speed} and right_speed={right_speed} indefinitely until next command")
             while self.ismoving:
-                #self._write(left_speed, right_speed)
+                self._write(left_speed, right_speed)
                 time.sleep(self.cmd_period)
                 
     def move_rover_thread(self,route):
