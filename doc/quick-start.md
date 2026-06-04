@@ -75,6 +75,7 @@ cd /path/to/oRover/pi
 - `stop.py` requires a running event bus to send shutdown command
 - `launcher.py` handles SIGTERM gracefully by stopping child processes in reverse order
 - Logs are written to `logs/` directory with timestamps
+- Web UI telemetry rendering is resilient to non-numeric IMU/battery payload fields; invalid values show as `--` rather than throwing client-side `toFixed` errors.
 
 ## Related Documentation
 

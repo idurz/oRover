@@ -64,6 +64,7 @@ cd /path/to/oRover/pi
 - They use relative paths, so can be run from any directory
 - `stop.py` requires a running event bus to send shutdown command
 - `launcher.py` handles the shutdown gracefully by stopping child processes
+- Web UI telemetry rendering now tolerates non-numeric IMU/battery payload fields; invalid values display as `--` instead of causing browser `toFixed` runtime errors.
 
 ## See Also
 

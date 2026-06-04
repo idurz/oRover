@@ -15,6 +15,14 @@ system is modular and adaptable for additional sensors and services. Protocol
 translation to specific hardware/software happens in dedicated modules, which
 makes troubleshooting easier.
 
+## Recent updates
+
+### 2026-06-04: Web telemetry rendering hardening
+
+- Browser telemetry rendering now safely normalizes IMU (`heading`, `pitch`, `roll`) and battery (`voltage`) values before numeric formatting.
+- This prevents client-side failures such as `TypeError: data.roll.toFixed is not a function` when upstream payloads contain strings, null values, or missing fields.
+- Invalid or non-numeric values are rendered as `--` so real-time updates continue without breaking the UI.
+
 ## Background
 We decided to create oRover primarilry as a project to learn how such a robot should work. Learn about the hardware of such a system, about the software setup and how these two should work together. 
 

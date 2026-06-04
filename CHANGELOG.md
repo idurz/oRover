@@ -1,4 +1,21 @@
-# Changelog - oRover (as of 2026-06-03)
+# Changelog - oRover (as of 2026-06-04)
+
+## Update 2026-06-04
+
+### Web UI telemetry formatting hardening
+**File Modified:** `pi/template/index.html`
+
+- Fixed browser runtime error `TypeError: data.roll.toFixed is not a function` in Socket.IO IMU updates.
+- Added a shared numeric formatter helper that coerces incoming values with `Number(...)` before formatting.
+- Updated IMU (`heading`, `pitch`, `roll`) and battery (`voltage`) value rendering to use safe formatting with a `--` fallback for invalid/missing values.
+- Result: telemetry widgets remain stable when payload fields are strings, null, or absent.
+
+### Documentation synchronization
+**Files Modified:** `README.md`, `doc/app.md`, `doc/quick-start.md`
+
+- Added notes about resilient UI telemetry rendering and troubleshooting guidance for non-numeric payloads.
+
+---
 
 ## Update 2026-06-03
 

@@ -32,6 +32,12 @@ sudo apt install python3-flask
 
 Please follow link to [Technical Documentation](doc/technical%20documentation.md) for more information.
 
+## Recent update (2026-06-04)
+
+- Web telemetry rendering in the browser was hardened to safely handle non-numeric IMU/battery fields.
+- IMU (`heading`, `pitch`, `roll`) and battery (`voltage`) values are now normalized before formatting, preventing `toFixed` runtime failures.
+- Invalid or missing values now render as `--` instead of breaking the update loop.
+
 ## Start and stop
 
 From the `pi/` directory:

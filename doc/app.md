@@ -16,6 +16,11 @@ clients:
 - `state_imu(msg)`: emits IMU updates
 - `state_pose(msg)`: accepts navigation snapshots from `orover_boss` and emits `nav_state`
 
+Web UI note (2026-06-04):
+- The browser-side Socket.IO handlers in `pi/template/index.html` now normalize IMU and battery values before numeric formatting.
+- This prevents failures like `TypeError: data.roll.toFixed is not a function` when incoming payload values are strings, null, or missing.
+- Invalid values display as `--` instead of interrupting real-time UI updates.
+
 ## Control path
 Typical control flow:
 1. Browser sends POST `/control` with an action (`forward`, `left`, `stop`, ...)
