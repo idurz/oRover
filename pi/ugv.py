@@ -27,7 +27,6 @@ class handler:
     """
     def __init__(self):
         self.ismoving = False # Checks if robot is currently moving, to prevent sending multiple movement commands at the same time. 
-        #self.routetogo = None # Stores the current route to follow for moveTo commands, which can be used to implement obstacle avoidance or dynamic path replanning in the future.
     
     def _route_check(self, route):
         # Check if route is valid, meaning it is a list of segments with valid distance and angle parameters. 
@@ -109,7 +108,6 @@ class handler:
 
     def cmd_moveRoute(self, message):
         # Handle route command, expects body to contain a route list with distance/angle steps.
-        print(f"cmd_moveRoute received with message {message}")
         if self.ismoving:
             b.logger.warning("cmd_moveRoute ignored: robot is already moving")
             return False
@@ -179,6 +177,9 @@ class ugv:
         self.angular_speed = b.config.getfloat("ugv", "angular_speed", fallback=90.0) # Default angular speed in degrees/s
         self.cmd_period = b.config.getfloat("ugv", "cmd_period", fallback=0.1) # Default command period in seconds
         self._serial_rx_buffer = ""
+
+        # Stores the current route to follow for moveTo commands, which can be used to implement obstacle avoidance or dynamic path replanning in the future.
+        self.routetogo = None 
 
         # ESP feedback type map from firmware json_cmd.h.
         self._serial_type_name = {
@@ -381,6 +382,10 @@ class ugv:
         if distance is not None:
             # Drive straight for a calculated duration based on LINEAR_SPEED
             direction = 1.0 if distance >= 0 else -1.0
+            if self.linear_speed == 0:
+                b.logger.error("Linear speed is set to 0, cannot move for distance")
+                return
+                
             duration = abs(distance) / self.linear_speed
             start = time.time()
             while time.time() - start < duration:
@@ -391,6 +396,10 @@ class ugv:
         if angle is not None:
             # Rotate in-place for a calculated duration based on ANGULAR_SPEED
             direction = 1.0 if angle >= 0 else -1.0
+            if self.angular_speed == 0:
+                b.logger.error("Angular speed is set to 0, cannot rotate for angle")
+                return
+                
             duration = abs(angle) / self.angular_speed
             start = time.time()
             while time.time() - start < duration:

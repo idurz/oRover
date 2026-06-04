@@ -5,6 +5,7 @@ import json
 import uuid
 import threading
 import csv
+import os
 from base_process import baseprocess, handler
 
 heartbeats = {};
@@ -61,7 +62,7 @@ class handler:
             p.logger.warning("Received battery state message without voltage field")
             return False
         
-    def state_imu(self, msg):
+    def state_motion(self, msg): 
         # Example handler for IMU state messages, expects body to contain "heading", "pitch", and "roll" fields
         heading = msg.get("body", {}).get("heading")
         pitch = msg.get("body", {}).get("pitch")
@@ -101,11 +102,15 @@ class base(baseprocess):
 
 
 
-def rx_commands():
+ROUTE_DIR = "routes"
+
+
+def rx_commands(filename):
     #open file and fill commands
     commands.clear()
+    filepath = os.path.join(ROUTE_DIR, filename)
     route_payload = {"id": str(uuid.uuid4()), "route": []}
-    with open("commands.csv", "r") as file:
+    with open(filepath, "r") as file:
         reader = csv.DictReader(file)
         for row in reader:
             route_payload["route"].append({
@@ -233,10 +238,24 @@ def control():
     #return jsonify({"status": "ok", "action": action, "state": state})
 
 
+@app.route("/route-files", methods=["GET"])
+def route_files():
+    os.makedirs(ROUTE_DIR, exist_ok=True)
+    files = sorted(f for f in os.listdir(ROUTE_DIR) if f.endswith(".csv"))
+    return jsonify(files=files)
+
+
 @app.route("/readroute", methods=["POST"])
 def readroute():
-    rx_commands()
-    return jsonify(status="route processed")
+    data = request.get_json() or {}
+    filename = data.get("filename", "").strip()
+    if not filename:
+        return jsonify(error="No filename provided"), 400
+    filepath = os.path.join(ROUTE_DIR, filename)
+    if not os.path.isfile(filepath):
+        return jsonify(error=f"File not found: {filename}"), 404
+    rx_commands(filename)
+    return jsonify(status="route processed", filename=filename)
 
 # -----------------------------
 # Route processing
@@ -255,15 +274,20 @@ def route():
         angle = step.get('angle')
         print(f" Step {i+1}: distance={distance}, angle={angle}")
 
+    filename = data.get("filename", "").strip()
+    if not filename:
+        return jsonify(error="No filename provided"), 400
+
+    os.makedirs(ROUTE_DIR, exist_ok=True)
+    filepath = os.path.join(ROUTE_DIR, filename)
+
     # Save route to CSV
-    with open("commands.csv", "w", newline="", encoding="utf-8") as file:
+    with open(filepath, "w", newline="", encoding="utf-8") as file:
         writer = csv.DictWriter(file, fieldnames=["distance", "angle"])
         writer.writeheader()
         writer.writerows(route)
 
-   #open file and fill commands
-    rx_commands()
-    return jsonify(status="route accepted", steps=len(route))
+    return jsonify(status="route accepted", steps=len(route), filename=filename)
 
 
 #### Main execution starts here ####

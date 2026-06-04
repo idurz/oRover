@@ -56,8 +56,19 @@
 
       <ul id="routeList"></ul>
 
-      <button onclick="readRoute()">📤 Read route</button>
-	    <button onclick="sendRoute()">📤 Send route</button>
+      <button onclick="readRoute()">� Read route</button>
+      <button onclick="saveRoute()">💾 Save route</button>
+    </div>
+
+    <!-- File picker modal for Read route -->
+    <div id="routePickerOverlay" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:1000; align-items:center; justify-content:center;">
+      <div style="background:#fff; border-radius:8px; padding:24px; min-width:300px; max-width:90%; box-shadow:0 4px 24px rgba(0,0,0,0.25);">
+        <h3 style="margin-top:0;">Select route file</h3>
+        <ul id="routeFileList" style="list-style:none; padding:0; margin:0 0 16px 0; max-height:240px; overflow-y:auto; border:1px solid #ddd; border-radius:4px;"></ul>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+          <button onclick="closeRoutePicker()">Cancel</button>
+        </div>
+      </div>
     </div>
 
     <div class="system-info" style="margin-top:24px;">
@@ -76,21 +87,23 @@
         </div>
 
         <div class="status-box">
-          <div class="label">Temperature (°C)</div>
-          <div id="temperature" class="value">--</div>
+          <div class="label">IMU heading</div>
+          <div id="imuHeading" class="value">--</div>
         </div>
 
         <div class="status-box">
-          <div class="label">Temperature (°C)</div>
-          <div id="temperature" class="value">--</div>
+          <div class="label">IMU pitch</div>
+          <div id="imuPitch" class="value">--</div>
+        </div>
+
+        <div class="status-box">
+          <div class="label">IMU roll</div>
+          <div id="imuRoll" class="value">--</div>
         </div>
 
       </div>
 
       <ul id="routeList"></ul>
-
-      <button onclick="readRoute()">📤 Read route</button>
-	    <button onclick="sendRoute()">📤 Send route</button>
     </div>
 
     <!--div class="status-box" style="margin-top:24px;">
@@ -111,9 +124,22 @@ socket.on("connect", () => {
   console.log("Connected to server");
 });
 
+function asFixed(value, digits = 2, fallback = "--") {
+  const n = Number(value);
+  return Number.isFinite(n) ? n.toFixed(digits) : fallback;
+}
+
+socket.on("imu_state", (data) => {
+  //  socketio.emit("imu_state", {"heading": heading, "pitch": pitch, "roll": roll})
+  console.log("Received:", data);
+  document.getElementById("imuHeading").textContent = asFixed(data.heading);
+  document.getElementById("imuPitch").textContent = asFixed(data.pitch);
+  document.getElementById("imuRoll").textContent = asFixed(data.roll);
+});
+
 socket.on("battery_state", (data) => {
   console.log("Received:", data);
-  document.getElementById("voltage").textContent = data.voltage.toFixed(2);
+  document.getElementById("voltage").textContent = asFixed(data.voltage);
 });
 
 socket.on("nav_state", (data) => {
@@ -211,16 +237,34 @@ function addStep() {
   document.getElementById('hoekInput').value = '';
 }
 
-async function sendRoute() {
+function askRouteFilename(actionLabel) {
+  const name = prompt(`Enter filename to ${actionLabel} route:`, "commands.csv");
+  if (name === null) {
+    return null;
+  }
+  const trimmed = name.trim();
+  if (!trimmed) {
+    alert('Filename is required.');
+    return null;
+  }
+  return trimmed;
+}
+
+async function saveRoute() {
+  const filename = askRouteFilename('save');
+  if (!filename) {
+    return;
+  }
+
   try {
     const res = await fetch('/route', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ route })
+      body: JSON.stringify({ route, filename })
     });
 
     if (res.ok) {
-      alert('Route sent!');
+      alert(`Route saved as ${filename}!`);
       route = [];
       document.getElementById('routeList').innerHTML = '';
     }
@@ -231,16 +275,49 @@ async function sendRoute() {
 
 async function readRoute() {
   try {
+    const res = await fetch('/route-files');
+    const data = await res.json();
+    const files = data.files || [];
+    const list = document.getElementById('routeFileList');
+    list.innerHTML = '';
+    if (files.length === 0) {
+      list.innerHTML = '<li style="padding:8px; color:#888;">No route files found.</li>';
+    } else {
+      files.forEach(f => {
+        const li = document.createElement('li');
+        li.textContent = f;
+        li.style.cssText = 'padding:8px 12px; cursor:pointer; border-bottom:1px solid #eee;';
+        li.addEventListener('mouseenter', () => li.style.background = '#f0f4ff');
+        li.addEventListener('mouseleave', () => li.style.background = '');
+        li.addEventListener('click', () => loadRouteFile(f));
+        list.appendChild(li);
+      });
+    }
+    const overlay = document.getElementById('routePickerOverlay');
+    overlay.style.display = 'flex';
+  } catch (e) {
+    console.error(e);
+    alert('Could not fetch route files.');
+  }
+}
+
+function closeRoutePicker() {
+  document.getElementById('routePickerOverlay').style.display = 'none';
+}
+
+async function loadRouteFile(filename) {
+  closeRoutePicker();
+  try {
     const res = await fetch('/readroute', {
       method: 'POST',
       headers: {'Content-Type':'application/json'},
-      body: JSON.stringify({ route })
+      body: JSON.stringify({ filename })
     });
-
     if (res.ok) {
-      alert('Route read!');
-//      route = [];
-//      document.getElementById('routeList').innerHTML = '';
+      alert(`Route "${filename}" loaded!`);
+    } else {
+      const err = await res.json().catch(() => ({}));
+      alert(`Error loading route: ${err.error || res.statusText}`);
     }
   } catch (e) {
     console.error(e);
