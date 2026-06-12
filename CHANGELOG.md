@@ -1,5 +1,13 @@
 # Changelog - oRover (as of 2026-06-04)
 
+## Update 2026-06-12
+**Files Modified:** `pi/hcsr04.py`, `pi/ugv.py`, `pi/oroverlib.py`
+
+- Updated location of config file, created sud directory config and moved config.ini
+- Added threading in ugv.py to be able to stop the vehicle
+- Added extra parameter to sensor in config.ini 'sensor_angle' to determine from what angle the distance is read
+- Implemented stop command if sensor angle is between -25 and 25 (hardcoded for now), in preparation for Lidar 
+
 ## Update 2026-06-04
 
 ### Web UI telemetry formatting hardening
