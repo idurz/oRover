@@ -21,7 +21,7 @@ class ultrasonic(baseprocess):
                 if not distance is None and (distance == 0 or distance < object_notify_distance):
                     self.send_event(src = s['sensorid']
                                           ,reason = orover.event.object_detected
-                                          ,body = {"distance": distance})
+                                          ,body = {"distance": distance,"sensor_angle":s["sensor_angle"]})
                         
                 time.sleep(polling_interval)
 
@@ -44,12 +44,12 @@ def getsensorinfo(p):
         # Check if sensor parameters are in format name, triggerpin, echo pin
         sensorinfo = sensorstring.split(",")
         sensorinfo = [s.strip() for s in sensorinfo]
-        if len(sensorinfo) != 3:
-            p.logger.error(f"config.ini section hcsr04 for item sensor{sensorcount} should have 3 values, found {len(sensorinfo)} instead")
+        if len(sensorinfo) != 4:
+            p.logger.error(f"config.ini section hcsr04 for item sensor{sensorcount} should have 4 values, found {len(sensorinfo)} instead")
             break        
         p.logger.info(f"config.ini section hcsr04, found sensor{sensorcount} with values {sensorinfo}")
 
-        # found 3 items. 1) Known sensor 2) Trigger pin 3) Echo pin
+        # found 4 items. 1) Known sensor 2) Trigger pin 3) Echo pin 4) Angle
         sensorid = p.name_to_enum(sensorinfo[0])
         if sensorid is None:
             p.logger.error(f"config.ini section hcsr04, item sensor{sensorcount} is not defined as known sensor in origin")
@@ -64,11 +64,17 @@ def getsensorinfo(p):
                 p.logger.error  (f"config section [hcsr04], item sensor{sensorcount} pin is not within expected GPIO range 2..27 or already used by another sensor")
                 break
             pinlist.remove(int(sensorinfo[i]))
+        try: #CvK check 4th value (Angle)
+            sensor_angle = float(sensorinfo[3])
+        except ValueError:
+            p.logger.error(f"config section [hcsr04], item sensor{sensorcount} angle must be numeric")
+            break
 
-        sensors.append({"sensorname" : sensorinfo[0]
-                       ,"sensorid"   : sensorid
-                       ,"triggerpin" : sensorinfo[1]
-                       ,"echopin"    : sensorinfo[2]
+        sensors.append({"sensorname"    : sensorinfo[0]
+                       ,"sensorid"      : sensorid
+                       ,"triggerpin"    : sensorinfo[1]
+                       ,"echopin"       : sensorinfo[2]
+                       ,"sensor_angle"  : sensor_angle # CvK angle
                        })
         
         # Setup GPIO pins for this sensor

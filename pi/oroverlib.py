@@ -17,20 +17,23 @@ def readConfig(name_requested=False):
 
     # Check if config file is given as argument, otherwise use default
     parser = argparse.ArgumentParser(description=f"Object Recognition and Versatile Exploration Robot")
-    parser.add_argument("--config", default="config.ini"
+    parser.add_argument("--config", default="config/config.ini"
                        ,help="Path to configuration file (default: config.ini)")  
     args = parser.parse_args()
 
+    # Expand ~ to the user's home directory
+    config_file = os.path.expanduser(args.config)
+
     # Check if config file exists, otherwise exit with error
-    if not os.path.isfile(args.config):
-        sys.exit(f"Configuration file {args.config} does not exist")
+    if not os.path.isfile(config_file):
+        sys.exit(f"Configuration file {config_file} does not exist")
 
     # Read configuration from config.ini file
     config = configparser.ConfigParser() 
-    config.read(args.config)
+    config.read(config_file)
     
     if name_requested:
-        return config, args.config
+        return config, config_file
     else:
         return config
 

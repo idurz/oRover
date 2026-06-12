@@ -167,7 +167,7 @@ def _world_to_grid(x_m, y_m):
 def _mark_cell(gx, gy, value):
     size = p.nav_state["grid"]["size"]
     if 0 <= gx < size and 0 <= gy < size:
-    p.nav_state["grid"]["cells"][gy][gx] = value
+         p.nav_state["grid"]["cells"][gy][gx] = value
 
 
 def update_grid_with_obstacle(src, distance_cm):

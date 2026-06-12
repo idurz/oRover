@@ -48,6 +48,8 @@ class handler:
 
     def _start_motion(self, *args, **kwargs):
         self.ismoving = True
+        ugv._stop_event.clear() # CvK Clear stop event before starting motion
+
         self.mv_thread = threading.Thread(target=ugv.move_rover_thread, args=args, kwargs=kwargs, daemon=True)
         self.mv_thread.start()
 
@@ -129,17 +131,23 @@ class handler:
         b.logger.debug(f"cmd_moveRoute id {route_id} starting motion with route {route}")
         self._start_motion(route)
 
-    def event_obstacleDetected(self, message):
-        # Handle obstacle detected event, expects body to contain "distance" and "angle" parameters, which are the distance 
-        # in meters and angle in degrees to the detected obstacle relative to the robot. 
-        if not self.ismoving:
-            b.logger.warning("event_obstacleDetected received but robot is not moving, ignoring")
-            return False
-        body = message.get('body') or {}
-        distance = body.get('distance')
-        angle = body.get('angle')
-        b.logger.info(f"Obstacle detected at distance {distance} m and angle {angle} deg, NO ACTION TAKEN (obstacle avoidance not implemented yet)")
-        return True
+#    def event_obstacleDetected(self, message):
+#        # Handle obstacle detected event, expects body to contain "distance" and "angle" parameters, which are the distance 
+#        # in meters and angle in degrees to the detected obstacle relative to the robot. 
+#        if not self.ismoving:
+#            b.logger.warning("event_obstacleDetected received but robot is not moving, ignoring")
+#            return False
+#        body = message.get('body') or {}
+#        distance = body.get('distance')
+#        sensor_angle = body.get('sensor_angle')
+#        b.logger.info(f"Obstacle detected at distance {distance} m and angle {sensor_angle} deg")
+#
+#        if sensor_angle < -25 or sensor_angle > 25: # CvK hardcoded to see if it works
+#            b.logger.info(f"Obstacle detected angle between -25 and 25 {sensor_angle} deg")
+#            ugv._stop_event.set() # CvK event detected so STOP
+#            ugv._stop() # CvK Stop
+#
+#        return True
 
     def cmd_getParam(self,message):
         # Retrieve IMU Data {"T":126} Used to obtain IMU information, including heading angle, geomagnetic field, acceleration, attitude, temperature, etc.
@@ -163,19 +171,41 @@ class handler:
         # body={"left_speed": left_speed, "right_speed": right_speed})
         s = json.dumps({"T":1,"L":body.get("left_speed"),"R":body.get("right_speed")})
         # set this speed as default for move and moveTo commands, until another speed command is received
-        ugv.linear_speed = body.get("left_speed")
-        ugv.angular_speed = body.get("right_speed")
+        # ugv.linear_speed = body.get("left_speed")
+        # ugv.angular_speed = body.get("right_speed")
         ugv.write_serial(s)
 
+    def cmd_stop(self, message): # CvK Stop if threading is activated to stop
+        b.logger.info("Stop command received")
+        ugv._stop()
+        return True
+    
+    def event_object_detected(self, message): # CvK receive distance and stop
+
+        body = message.get("body") or {}
+        distance = body.get("distance")
+        sensor_angle = body.get("sensor_angle")
+
+        b.logger.warning(f"Event_object_detected - Obstacle detected at distance {distance} m, sensor angle {sensor_angle} ")
+
+        if sensor_angle > -25 and sensor_angle < 25: # CvK hardcoded to see if it works
+            b.logger.info(f"Obstacle detected angle between -25 and 25 {sensor_angle} deg")
+            ugv._stop_event.set() # CvK event detected so STOP
+            ugv._stop() # CvK Stopugv._stop()
+
+        return True
 
 class ugv:
-    """ CHandler class for UGV messages, received via serial port. The handler functions parse the incoming serial data, 
+    """ Handler class for UGV messages, received via serial port. The handler functions parse the incoming serial data, 
         extract relevant information, and send new messages to the bus based on the content of the serial data. 
     """
     def __init__(self):
         self.linear_speed = b.config.getfloat("ugv", "linear_speed", fallback=0.5) # Default linear speed in m/s
         self.angular_speed = b.config.getfloat("ugv", "angular_speed", fallback=90.0) # Default angular speed in degrees/s
         self.cmd_period = b.config.getfloat("ugv", "cmd_period", fallback=0.1) # Default command period in seconds
+        
+        self._stop_event = threading.Event()  # CvK Stop event in case of f.e. object_detected
+        
         self._serial_rx_buffer = ""
 
         # Stores the current route to follow for moveTo commands, which can be used to implement obstacle avoidance or dynamic path replanning in the future.
@@ -389,6 +419,12 @@ class ugv:
             duration = abs(distance) / self.linear_speed
             start = time.time()
             while time.time() - start < duration:
+
+                # CvK Stop
+                if self._stop_event.is_set():
+                    b.logger.info("Movement distance interrupted by stop event")
+                    return
+                
                 b.logger.debug(f"Moving straight for distance {distance} m at speed {self.linear_speed} m/s, duration {duration:.2f} s; time elapsed {time.time() - start:.2f} s")
                 self._write(left_speed * direction, right_speed * direction)
                 time.sleep(self.cmd_period)
@@ -403,6 +439,11 @@ class ugv:
             duration = abs(angle) / self.angular_speed
             start = time.time()
             while time.time() - start < duration:
+                # CvK Stop
+                if self._stop_event.is_set():
+                    b.logger.info("Movement angle interrupted by stop event")
+                    return
+                
                 b.logger.debug(f"Rotating in-place for angle {angle} deg at speed {self.angular_speed} deg/s, duration {duration:.2f} s; time elapsed {time.time() - start:.2f} s")
                 self._write(-left_speed * direction, right_speed * direction)
                 time.sleep(self.cmd_period)
@@ -410,7 +451,8 @@ class ugv:
         if distance is None and angle is None:
             # No distance or angle limit, keep sending the same speed command until another command is received or stop command is received.
             b.logger.debug(f"Moving with left_speed={left_speed} and right_speed={right_speed} indefinitely until next command")
-            while self.ismoving:
+#  CvK Stop while self.ismoving:
+            while not self._stop_event.is_set():
                 self._write(left_speed, right_speed)
                 time.sleep(self.cmd_period)
                 
@@ -421,6 +463,10 @@ class ugv:
         # a route is a list of segments, where each segment has a distance and angle to move, and the robot should execute them sequentially.
         b.logger.debug(f"move_rover_thread called with route={route}")
         for step in route or []:
+
+            if self._stop_event.is_set(): # CvK Stop
+                b.logger.info("Route aborted by stop_event")
+                break
             if not h.ismoving:
                 b.logger.debug("move_rover_thread stopping early because ismoving was cleared")
                 break
@@ -440,6 +486,7 @@ class ugv:
         self.serial_port.write(cmd.encode())
 
     def _stop(self):
+        self._stop_event.set() # CvK Stop
         self._write(0.0, 0.0)
         h.ismoving = False
     
