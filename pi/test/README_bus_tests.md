@@ -35,11 +35,11 @@ reusable test library in `bus_testlib.py`.
 From `pi/test`:
 
 ```bash
-python3 boss_test.py --config ../config.ini
-python3 ugv_test.py --config ../config.ini
-python3 app_test.py --config ../config.ini --url http://localhost:5000/control --action stop
-python3 stop_test.py --config ../config.ini
-python3 launcher_test.py --config ../config.ini
+python3 boss_test.py --config ../config/config.ini
+python3 ugv_test.py --config ../config/config.ini
+python3 app_test.py --config ../config/config.ini --url http://localhost:5000/control --action stop
+python3 stop_test.py --config ../config/config.ini
+python3 launcher_test.py --config ../config/config.ini
 ```
 
 ## Notes

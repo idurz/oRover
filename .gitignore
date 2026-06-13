@@ -1,3 +1,5 @@
 .DS_Store
 config.ini
 .log
+pi/config/config.ini
+pi/config/*.local.ini

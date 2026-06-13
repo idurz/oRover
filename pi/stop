@@ -2,10 +2,10 @@
 # oRover Stop Script
 # Sends graceful shutdown command to the running oRover system
 # Usage: ./stop [config_file]
-# Example: ./stop config.ini
+# Example: ./stop config/config.ini
 #          ./stop /path/to/custom.ini
 
-CONFIG_FILE="${1:-config.ini}"
+CONFIG_FILE="${1:-config/config.ini}"
 
 # Change to script directory
 cd "$(dirname "$0")" || exit 1

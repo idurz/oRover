@@ -53,7 +53,7 @@ From the `pi/` directory:
 ./stop             # sends cmd.shutdown through the event bus
 ```
 
-Use `./start <config.ini>` or `./stop <config.ini>` to select another config file.
+Use `./start <config/config.ini>` or `./stop <config/config.ini>` to select another config file.
 
 ## 📂 Repository Structure
 - orover     main directory

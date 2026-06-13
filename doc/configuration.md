@@ -2,7 +2,7 @@
 
 ## Background
 `launcher.py` starts oRover components based on a shared INI configuration file.
-By default this file is `config.ini` in the working directory.
+By default this file is `config/config.ini` in the working directory.
 
 You can override the file path with:
 

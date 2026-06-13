@@ -9,7 +9,7 @@ Launches the oRover system via the launcher process.
 
 **Usage:**
 ```bash
-./start              # Uses default config.ini
+./start              # Uses default config/config.ini
 ./start custom.ini   # Uses specified config file
 ```
 
@@ -24,7 +24,7 @@ Sends a graceful shutdown command to the running oRover system.
 
 **Usage:**
 ```bash
-./stop              # Uses default config.ini
+./stop              # Uses default config/config.ini
 ./stop custom.ini   # Uses specified config file
 ```
 
@@ -55,7 +55,7 @@ cd /path/to/oRover/pi
 - Python 3.6+
 - Event bus running (started by launcher)
 - Launcher and stop.py processes in the pi directory
-- Config file accessible (default: `config.ini`)
+- Config file accessible (default: `config/config.ini`)
 
 ## Notes
 

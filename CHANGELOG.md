@@ -4,6 +4,20 @@ All notable changes to this project are documented in this file.
 
 ## Update 2026-06-13
 
+### Config file location migration and tracking policy
+**Files Modified:** `.gitignore`, `pi/oroverlib.py`, `pi/start`, `pi/stop`, `pi/test/bus_testlib.py`, `pi/test/test_eventbus.py`
+**Files Renamed:** `pi/config.ini` -> `pi/config/config.example.ini`
+
+- Standardized runtime config location to `pi/config/config.ini`.
+- Updated Python and script defaults to resolve config from `config/config.ini` when run from `pi/`.
+- Added git ignore rule for `pi/config/config.ini` so machine-local runtime config is never tracked.
+- Kept a tracked template file at `pi/config/config.example.ini`.
+
+### Documentation updated for new default config path
+**Files Modified:** `README.md`, `pi/README_START_STOP.md`, `doc/configuration.md`, `doc/launcher.md`, `doc/quick-start.md`, `doc/stop.md`, `pi/test/README_bus_tests.md`
+
+- Updated command examples and default-path descriptions from `config.ini` to `config/config.ini`.
+
 ### Since 2026-06-04 (working tree updates)
 
 No newer git commits were recorded after 2026-06-04 in this branch; the changes below summarize the current local working tree updates made since that date.

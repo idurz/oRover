@@ -93,8 +93,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--config",
-        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "config.ini"),
-        help="Path to config.ini (default: pi/config.ini)",
+        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config", "config.ini"),
+        help="Path to config.ini (default: pi/config/config.ini)",
     )
     parser.add_argument(
         "--use-existing-bus",
