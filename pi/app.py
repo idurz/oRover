@@ -8,17 +8,25 @@ import csv
 import os
 from base_process import baseprocess, handler
 
-heartbeats = {};
+
 state = {"temperature": 22,
         "speed": 13,
         "angle": 0,
         "voltage": 14}
 
+# Stuff to send to the browser will be collected in this shared state dict, which handlers 
+# can update and the emit_function will send to the frontend every few seconds.
 shared_state = {
-    "map": None,
-    "robot": (0, 0),
-    "path": []
+     "heartbeats": {}
+    ,"map": {}
+    ,"robot": {}
+    ,"path": {}
+    ,"imu": {}
 }
+
+###########################################################################
+# Handlers
+###########################################################################
 
 class handler:
     """ Contains the handlers for messages. Each handler takes a message as input and returns a result string. 
@@ -40,15 +48,16 @@ class handler:
 
     def event_heartbeat(self, msg):
     
-        global heartbeats
+        global shared_state
         # event.heartbeat {"id": "2d2dbb81-64f8-46bd-9585-2b64280af9a2", "ts": "2026-03-14T19:55:52.527138", "src": 1000, 
         # "me": "eventbus", "host": "robot", "prio": 5, "reason": 6402, "body": {"script": "eventbus"}}
 
         if "me" in msg and "ts" in msg:
            # store name and timestamp of last heartbeat for each script
-           heartbeats[msg["me"]] = msg["ts"]
+           shared_state["heartbeats"][msg["me"]] = msg["ts"]
            p.logger.debug(f"Stored heartbeat from {msg['me']}")
-           socketio.emit("heartbeat", {"me": msg["me"], "timestamp": msg["ts"]})
+           # emitting this info is organised by the emit_function, which runs in a separate thread 
+           # and sends the whole shared_state to the frontend every few seconds.
         return True
     
     def state_battery(self, msg):
@@ -56,7 +65,9 @@ class handler:
         voltage = msg.get("body", {}).get("voltage")
         if voltage is not None:
             p.logger.info(f"Battery voltage: {voltage} V")
-            socketio.emit("battery_state", {"voltage": voltage})
+            # emitting this info is organised by the emit_function, which runs in a separate thread 
+            # and sends the whole shared_state to the frontend every few seconds.
+            shared_state["robot"]["voltage"] = voltage
             return True
         else:
             p.logger.warning("Received battery state message without voltage field")
@@ -69,7 +80,8 @@ class handler:
         roll = msg.get("body", {}).get("roll")
         if heading is not None and pitch is not None and roll is not None:
             p.logger.info(f"IMU data - Heading: {heading} deg, Pitch: {pitch} deg, Roll: {roll} deg")
-            socketio.emit("imu_state", {"heading": heading, "pitch": pitch, "roll": roll})
+            shared_state["imu"] = {"h": heading, "p": pitch, "r": roll}
+            # change above
             return True
         else:
             p.logger.warning("Received IMU state message without required fields")
@@ -87,13 +99,11 @@ class handler:
             return False
 
         shared_state["map"] = body.get("grid", {}).get("preview")
-        shared_state["robot"] = (
+        shared_state["pose"] = (
             body.get("pose", {}).get("x_m", 0.0),
             body.get("pose", {}).get("y_m", 0.0),
             body.get("pose", {}).get("heading_deg", 0.0),
         )
-
-        socketio.emit("nav_state", body)
         return True
     
     
@@ -289,6 +299,21 @@ def route():
 
     return jsonify(status="route accepted", steps=len(route), filename=filename)
 
+###########################################################################
+# Other stuff
+###########################################################################
+
+def emit_function():
+    # send information to frontend every few seconds;
+    while True:
+        emit_frequency = config.getfloat("app", "emit_frequency", fallback=1.0)
+        if emit_frequency <= 0:
+            # No emitting. Refresh in 5 seconds to check if config changed.
+            socketio.sleep(5) 
+        else:
+            socketio.emit(shared_state)
+            socketio.sleep(emit_frequency)  # Sleep for the configured interval
+        
 
 #### Main execution starts here ####
 if __name__ == "__main__":
@@ -296,5 +321,7 @@ if __name__ == "__main__":
     host = config.get('app', 'host', fallback='localhost')
     port = config.getint('app', 'port', fallback=5000)
 
+    # start emit thread for heartbeats and other state updates
+    socketio.start_background_task(emit_function)
     p.logger.info(f"Starting Flask app with debug={debug_mode}, host={host}, port={port}")
     socketio.run(app, host=host, port=port, debug=debug_mode, use_reloader=False,allow_unsafe_werkzeug=True)

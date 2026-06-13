@@ -49,6 +49,7 @@ name = value
 | host | 0.0.0.0 | Flask bind address |
 | port | 5000 | Flask bind port |
 | secret_key | (set in config) | Flask secret key |
+| emit_frequency | 1.0 | frequency of emitting state information to browser in seconds. Set to zero to stop emitting info |
 
 ### Section [scripts]
 Defines scripts started by launcher.
@@ -106,6 +107,8 @@ messages regardless of distance |
 | linear_speed | 0.3 | Movement helper linear speed (m/s) |
 | angular_speed | 45.0 | Movement helper angular speed (deg/s) |
 | cmd_period | 0.2 | Command resend period (seconds) |
+| ugv_updates_interval | 1 | Interval between periodic UGV update requests (seconds); `0` disables the update thread |
+| ugv_updates_enabled | False | Enables sending periodic UGV update requests when the update thread is running |
 
 ### Section [boss]
 | name | default | description |

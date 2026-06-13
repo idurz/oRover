@@ -1,4 +1,62 @@
-# Changelog - oRover (as of 2026-06-04)
+# Changelog
+
+All notable changes to this project are documented in this file.
+
+## Update 2026-06-13
+
+### Since 2026-06-04 (working tree updates)
+
+No newer git commits were recorded after 2026-06-04 in this branch; the changes below summarize the current local working tree updates made since that date.
+
+### App/browser state streaming refactor
+**Files Modified:** `pi/app.py`, `pi/config.ini`, `pi/template/index.html`
+**Files Added:** `pi/static/js/orover.js`
+
+- Refactored `app.py` message handlers to accumulate state in a shared `shared_state` structure instead of emitting per-message Socket.IO events.
+- Added periodic browser emission loop in `app.py` (`emit_function`) and startup of a background emit task.
+- Added `[app].emit_frequency` config setting to control browser update cadence.
+- Moved the large inline JavaScript block from `template/index.html` to `static/js/orover.js` and switched the template to include the external script.
+
+### UGV periodic firmware updates and serial safety
+**Files Modified:** `pi/ugv.py`, `pi/config.ini`
+
+- Added optional periodic UGV update loop in `ugv.py` that sends typed request `{"T": 130}` at a configurable interval.
+- Added UGV config switches:
+	- `[ugv].ugv_updates_interval`
+	- `[ugv].ugv_updates_enabled`
+- Hardened serial writes to use instance port (`self.serial_port`) with connection guard checks.
+
+### Navigation/boss cleanup and bug fix
+**Files Modified:** `pi/boss.py`
+
+- Renamed helper `_sensor_to_angle_rad` to `sensor_to_angle_rad` and updated call sites.
+- Fixed indentation in `_mark_cell(...)` so grid-cell updates are correctly applied inside bounds checks.
+
+### Runtime config tuning
+**Files Modified:** `pi/config.ini`
+
+- Updated `[hcsr04].min_obj_distance` from `0` to `20`.
+- Added app/browser emit and UGV periodic-update settings (see above sections).
+
+### Reusable integration test suite added
+**Files Added:** `pi/test/README_bus_tests.md`, `pi/test/bus_testlib.py`, `pi/test/boss_test.py`, `pi/test/ugv_test.py`, `pi/test/app_test.py`, `pi/test/stop_test.py`, `pi/test/launcher_test.py`
+
+- Added reusable bus testing helpers (`BusProbe`, expectations, scenario runner).
+- Added process-level integration tests for `boss.py`, `ugv.py`, `app.py`, `stop.py`, and `launcher.py`.
+- Documented usage, assumptions, and scenarios in `README_bus_tests.md`.
+
+### Documentation updates and architecture clarifications
+**Files Modified:** `README.md`, `doc/app.md`, `doc/boss_server.md`, `doc/configuration.md`, `doc/launcher.md`, `doc/stop.md`, `doc/technical documentation.md`, `doc/ugv.md`
+
+- Added a new README update note for reusable bus integration tests.
+- Expanded process docs with explicit incoming/outgoing bus-connection sections.
+- Added bus connection matrix and shared `baseprocess` inheritance behavior in technical documentation.
+- Documented new config options (`emit_frequency`, `ugv_updates_interval`, `ugv_updates_enabled`).
+
+### Asset update
+**Files Added:** `doc/pics/oRover messages.drawio.png`
+
+- Added updated architecture/communication diagram export.
 
 ## Update 2026-06-12
 **Files Modified:** `pi/hcsr04.py`, `pi/ugv.py`, `pi/oroverlib.py`

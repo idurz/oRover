@@ -14,11 +14,6 @@ import json
 import threading
 
 
-# todo: 2026-04-14 22:08:42 ugv      DEBUG     - Received serial data: b'{"T": 1, "L": 0.5, "R": 0.5}\n'
-#2026-04-14 22:08:42 ugv      DEBUG     - serial_data_received -> {'T': 1, 'L': 0.5, 'R': 0.5}
-#2026-04-14 22:08:42 ugv      DEBUG     - Received serial data with unrecognized format: {'T': 1, 'L': 0.5, 'R': 0.5}, returning False
-
-
 class handler:
     """ Contains the handlers for UGV messages. Each handler takes a message as input and returns a result string. 
         The handlers are called by the UGV server when a message with the corresponding reason is received.
@@ -203,13 +198,19 @@ class ugv:
         self.linear_speed = b.config.getfloat("ugv", "linear_speed", fallback=0.5) # Default linear speed in m/s
         self.angular_speed = b.config.getfloat("ugv", "angular_speed", fallback=90.0) # Default angular speed in degrees/s
         self.cmd_period = b.config.getfloat("ugv", "cmd_period", fallback=0.1) # Default command period in seconds
-        
         self._stop_event = threading.Event()  # CvK Stop event in case of f.e. object_detected
-        
+        self.ugv_updates_interval = b.config.getint("ugv", "ugv_updates_interval", fallback=1) 
+        self.ugv_updates_enabled = b.config.getboolean("ugv", "ugv_updates_enabled", fallback=False)    
         self._serial_rx_buffer = ""
 
         # Stores the current route to follow for moveTo commands, which can be used to implement obstacle avoidance or dynamic path replanning in the future.
         self.routetogo = None 
+
+        if self.ugv_updates_interval > 0:
+            # Request regular updates from the UGV firmware, which can be used to implement a watchdog or periodic status updates in the future.
+            b.logger.debug(f"Requesting regular updates from UGV firmware every {self.ugv_updates_interval} seconds")
+            self.update_thread = threading.Thread(target=self._update_loop, daemon=True)
+            self.update_thread.start() 
 
         # ESP feedback type map from firmware json_cmd.h.
         self._serial_type_name = {
@@ -221,6 +222,15 @@ class ugv:
             1051: "roarm_feedback",
             139: "speed_rate_feedback",
         }
+
+    def _update_loop(self):
+        # Heartbeat update loop, sending an update event at the configured interval
+        time.sleep(10) # Initial delay before starting updates, to allow system to initialize and open serial port
+        while b.running:
+            if self.ugv_updates_enabled:
+                serialmsg = json.dumps({"T": 130})
+                self.write_serial(serialmsg)   
+            time.sleep(self.ugv_updates_interval)
 
     def open_serial(self):
         # Open the serial port for communication with the UGV, using the configuration parameters from the config file
@@ -401,10 +411,10 @@ class ugv:
             b.logger.debug(f"serial_dispatch -> unknown typed message T={msg_type}")
 
     def write_serial(self,serialmsg):
-        if serialmsg:
+        if self.serial_port and serialmsg:
             s = f"{serialmsg}\n"
             b.logger.debug(f"Writing to serial port: {s}")
-            ugv.serial_port.write(s.encode())
+            self.serial_port.write(s.encode())
 
     def _move_segment(self, left_speed = 0, right_speed = 0, distance=None, angle=None):
         b.logger.debug(f"_move_segment called with left_speed={left_speed}, right_speed={right_speed},   angle={angle}, distance={distance}")

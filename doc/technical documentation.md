@@ -139,4 +139,64 @@ Log files are stored in a `logs/` directory (configurable via `logdir` in config
 - Old log files are deleted to prevent unbounded disk usage
 - See [configuration.md](configuration.md) for details on `logdir` and `max_logfiles` parameters
 
+## Bus connection overview
+
+The process-level docs now include explicit incoming and outgoing bus
+connections. A key implementation detail is shared inheritance from
+`baseprocess`:
+
+- Most long-running bus clients (`boss.py`, `ugv.py`, `app.py`, `launcher.py`)
+  inherit publishing via `send_event()` and can publish `event.heartbeat` via
+  `_heartbeat_loop` when `heartbeat_interval > 0`.
+- Actual incoming handlers are defined by each process-specific handler class
+  and auto-registered by naming convention (`event_*`, `cmd_*`, `state_*`).
+- When a process defines its own handler class, base handler methods
+  (`cmd.stop`, `cmd.pause`, `cmd.resume`) are not automatically included unless
+  explicitly composed/inherited by that handler.
+
+For explicit in/out lists per component, see:
+- [boss_server.md](boss_server.md)
+- [ugv.md](ugv.md)
+- [app.md](app.md)
+- [launcher.md](launcher.md)
+- [stop.md](stop.md)
+
+### Process connection matrix
+
+| Process | Incoming (handled) | Outgoing (explicit in process) | Outgoing (inherited from `baseprocess`) |
+|---|---|---|---|
+| `boss.py` | `event.heartbeat`, `event.object_detected`, `state.motion`, `state.battery` | `cmd.shutdown` (battery critical), `event.lowBattery` (battery low) | `event.heartbeat` via `_heartbeat_loop` when `heartbeat_interval > 0` |
+| `ugv.py` | `cmd.move`, `cmd.moveTo`, `cmd.moveRoute`, `cmd.getParam`, `cmd.setParam`, `cmd.set_motor_speed`, `event.obstacleDetected` | `state.battery`, `state.motion`, `state.sensor_status`, `state.pose`, `state.actuator_speed` | `event.heartbeat` via `_heartbeat_loop` when `heartbeat_interval > 0` |
+| `app.py` | `event.heartbeat`, `state.battery`, `state.motion`, `state.pose` | `cmd.moveRoute`, `cmd.set_motor_speed` | `event.heartbeat` via `_heartbeat_loop` when `heartbeat_interval > 0` |
+| `launcher.py` | `cmd.shutdown` | none (process orchestration only) | `event.heartbeat` via `_heartbeat_loop` when `heartbeat_interval > 0` |
+| `stop.py` | none (one-shot publisher) | `cmd.shutdown` | possible but not relied on: `event.heartbeat` via `_heartbeat_loop` when `heartbeat_interval > 0` |
+| `hcsr04.py` | none (sensor publisher) | `event.object_detected` | `event.heartbeat` via `_heartbeat_loop` when `heartbeat_interval > 0` |
+| `cmdline.py` | none (interactive publisher) | user-selected `cmd.*` | `event.heartbeat` via `_heartbeat_loop` when `heartbeat_interval > 0` |
+| `test/testcmd.py` | none (interactive test publisher) | user-selected `cmd.*` | `event.heartbeat` via `_heartbeat_loop` when `heartbeat_interval > 0` |
+
+Notes:
+- `eventbus.py` is a ZeroMQ proxy process and does not register `event_*`, `cmd_*`, `state_*` handlers as bus topics.
+- `logserver.py` and `powercontrol.py` are not eventbus topic handlers/publishers in the same way as bus client processes above.
+
+## Reusable bus tests
+
+The `pi/test/` directory now includes reusable integration test programs that
+exercise bus traffic and verify observable outcomes:
+
+- `boss_test.py` publishes `state.battery` and expects `event.lowBattery`
+- `ugv_test.py` publishes `cmd.set_motor_speed` and expects a matching UGV feedback topic
+- `app_test.py` calls `POST /control` and expects `cmd.set_motor_speed` on the bus
+- `stop_test.py` runs `stop.py` and expects `cmd.shutdown` from `orover_stopper`
+- `launcher_test.py` runs `launcher.py` with a temporary config and expects shutdown handling
+
+The shared helper library is `pi/test/bus_testlib.py`. It handles:
+- config loading
+- PUB/SUB setup
+- slow-joiner mitigation
+- message construction in the same format as `baseprocess.send_event()`
+- reusable expectation checks for different process scenarios
+
+See [pi/test/README_bus_tests.md](../pi/test/README_bus_tests.md) for run
+examples and scenario details.
+
 ---

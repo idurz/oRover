@@ -17,6 +17,19 @@ When executed, the script:
 The receiving process (typically `launcher.py`) is expected to handle this
 shutdown command and stop child processes gracefully.
 
+## Incoming and outgoing bus connections
+
+### Incoming (handled in `stop.py`)
+- none (one-shot publisher)
+
+### Outgoing (published in `stop.py`)
+- `cmd.shutdown` with `body = {"value": "requested by stop.py"}`
+
+### Outgoing inherited from `baseprocess`
+- `event.heartbeat` can be published by `_heartbeat_loop` when
+  `heartbeat_interval > 0` in config, but `stop.py` is intended as a short-lived
+  helper and should not rely on heartbeat traffic.
+
 ## How to run
 From the `pi` directory:
 

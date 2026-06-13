@@ -38,6 +38,12 @@ Please follow link to [Technical Documentation](doc/technical%20documentation.md
 - IMU (`heading`, `pitch`, `roll`) and battery (`voltage`) values are now normalized before formatting, preventing `toFixed` runtime failures.
 - Invalid or missing values now render as `--` instead of breaking the update loop.
 
+## Recent update (2026-06-12)
+
+- Added reusable bus integration tests in `pi/test/` for `boss.py`, `ugv.py`, `app.py`, `stop.py`, and `launcher.py`.
+- The tests share a common helper library so new bus scenarios can be added without duplicating PUB/SUB setup or message formatting.
+- See [pi/test/README_bus_tests.md](pi/test/README_bus_tests.md) for run examples and scenario coverage.
+
 ## Start and stop
 
 From the `pi/` directory:

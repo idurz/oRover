@@ -5,6 +5,21 @@ The launcher is the process manager for oRover. It reads `config.ini`, starts al
 configured scripts, and handles graceful shutdown of child processes when a
 termination signal is received.
 
+## Incoming and outgoing bus connections
+
+### Incoming (handled in `launcher.py`)
+- `cmd.shutdown` via `cmd_shutdown(message)`
+
+### Outgoing (published in `launcher.py`)
+- none (launcher does process orchestration; it does not publish operational bus commands)
+
+### Outgoing inherited from `baseprocess`
+- `event.heartbeat` is published periodically by `_heartbeat_loop` when
+  `heartbeat_interval > 0` in config.
+
+`launcher.py` defines its own handler class, so base handler commands
+(`cmd.stop`, `cmd.pause`, `cmd.resume`) are not auto-registered here.
+
 By default, systemd sends `SIGTERM` when stop is requested (or during system
 shutdown), then waits before sending `SIGKILL`. The launcher receives `SIGTERM`
 and forwards `SIGTERM` to all started oRover processes.

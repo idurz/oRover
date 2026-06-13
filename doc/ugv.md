@@ -10,6 +10,32 @@ The process is a `baseprocess` client with a custom main loop:
 - reads serial data from the ESP32 (`read(1024)`)
 - parses serial data line-by-line (newline framed)
 
+## Incoming and outgoing bus connections
+
+### Incoming (handled in `ugv.py`)
+- `cmd.move` via `cmd_move(message)`
+- `cmd.moveTo` via `cmd_moveTo(message)`
+- `cmd.moveRoute` via `cmd_moveRoute(message)`
+- `cmd.getParam` via `cmd_getParam(message)`
+- `cmd.setParam` via `cmd_setParam(message)`
+- `cmd.set_motor_speed` via `cmd_set_motor_speed(message)`
+- `event.obstacleDetected` via `event_obstacleDetected(message)`
+
+### Outgoing (published in `ugv.py`)
+- `state.battery` from typed serial feedback `T=1001`
+- `state.motion` from typed serial feedback `T=1001` and `T=1002`
+- `state.sensor_status` from typed serial feedback `T=1003`, `T=1004`, `T=1005`
+    and from untyped JSON forwarding
+- `state.pose` from typed serial feedback `T=1051`
+- `state.actuator_speed` from typed serial feedback `T=139`
+
+### Outgoing inherited from `baseprocess`
+- `event.heartbeat` is published periodically by `_heartbeat_loop` when
+    `heartbeat_interval > 0` in config.
+
+`ugv.py` uses its own handler class, so base handler commands (`cmd.stop`,
+`cmd.pause`, `cmd.resume`) are not auto-registered here.
+
 ## Command handlers currently implemented
 The handler class currently exposes these command entry points:
 - `cmd_move(message)`

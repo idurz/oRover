@@ -24,6 +24,25 @@ Handlers are auto-registered by naming convention in the handler class:
 `baseprocess.fetchtopics()` scans these methods and maps them to the proper
 enum reason values. This is how dispatch is built in the current codebase.
 
+## Incoming and outgoing bus connections
+
+### Incoming (handled in `boss.py`)
+- `event.heartbeat` via `event_heartbeat(msg)`
+- `event.object_detected` via `event_object_detected(msg)`
+- `state.motion` via `state_motion(msg)`
+- `state.battery` via `state_battery(msg)`
+
+### Outgoing (published in `boss.py`)
+- `cmd.shutdown` when battery is at or below shutdown threshold
+- `event.lowBattery` when battery is below low threshold
+
+### Outgoing inherited from `baseprocess`
+- `event.heartbeat` is published periodically by `_heartbeat_loop` when
+	`heartbeat_interval > 0` in config.
+
+`boss.py` uses its own handler class, so base handler commands (`cmd.stop`,
+`cmd.pause`, `cmd.resume`) are not auto-registered here.
+
 ## Message validation
 Incoming messages are validated before dispatch. The validation includes:
 - required fields present

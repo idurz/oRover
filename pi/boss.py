@@ -146,7 +146,7 @@ def _as_float(value):
 #     p.nav_state["pose"]["y_m"] += v * dt * math.sin(theta)
 
 
-def _sensor_to_angle_rad(sensor_name):
+def sensor_to_angle_rad(sensor_name):
     if "left" in sensor_name:
         return math.pi / 2.0
     if "right" in sensor_name:
@@ -167,7 +167,7 @@ def _world_to_grid(x_m, y_m):
 def _mark_cell(gx, gy, value):
     size = p.nav_state["grid"]["size"]
     if 0 <= gx < size and 0 <= gy < size:
-         p.nav_state["grid"]["cells"][gy][gx] = value
+        p.nav_state["grid"]["cells"][gy][gx] = value
 
 
 def update_grid_with_obstacle(src, distance_cm):
@@ -182,7 +182,7 @@ def update_grid_with_obstacle(src, distance_cm):
 
     sensor_name = p.enum_to_name(src) or ""
     heading_deg = p.nav_state["pose"].get("heading_deg", 0.0) or 0.0
-    theta = math.radians(heading_deg) + _sensor_to_angle_rad(sensor_name.lower())
+    theta = math.radians(heading_deg) + sensor_to_angle_rad(sensor_name.lower())
 
     x0 = p.nav_state["pose"]["x_m"]
     y0 = p.nav_state["pose"]["y_m"] 
