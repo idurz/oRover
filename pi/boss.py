@@ -46,25 +46,22 @@ class handler:
 
     def state_motion(self, message):
         body = message.get("body", {})
-        #p.nav_state_lock.acquire()
-        #try:
-        #    heading = _as_float(body.get("heading"))
-        #    left_speed = _as_float(body.get("left_speed"))
-        #    right_speed = _as_float(body.get("right_speed"))
+        try:
+            heading = _as_float(body.get("heading"))
+            roll = _as_float(body.get("roll"))
+            left_speed = _as_float(body.get("left_speed"))
+            right_speed = _as_float(body.get("right_speed"))
+            pitch = _as_float(body.get("pitch"))
+            ts = message.get("ts")
+            if ts is not None:
+                p.nav_state["last_update_ts"] = ts
 
-        #    p.nav_state["motion"] = {
-        #        "heading": heading,
-        #        "pitch": body.get("pitch"),
-        #        "roll": body.get("roll"),
-        #        "left_speed": left_speed,
-        #        "right_speed": right_speed,
-        #        "ts": message.get("ts"),
-        #    }
-        #
-        #    _update_pose_from_motion(heading, left_speed, right_speed)
-        #    p.nav_state["last_update_ts"] = message.get("ts")
-        #finally:
-        #    p.nav_state_lock.release()
+        except ValueError:
+            p.logger.warning(f"Discarded motion message with invalid numeric values: {body}")
+            return True
+        p.logger.info(f"Received motion update: heading={heading} roll={roll} pitch={pitch} left_speed={left_speed} right_speed={right_speed}") 
+        # Update pose based on motion data. 
+        update_pose_from_motion(heading, left_speed, right_speed)
         return True
 
 
@@ -73,13 +70,6 @@ class handler:
         voltage = _as_float(body.get("voltage"))
         if voltage is None:
             return True
-        
-        #p.nav_state_lock.acquire()
-        #try:
-        #    p.nav_state["battery_voltage"] = voltage
-        #    p.nav_state["last_update_ts"] = message.get("ts")
-        #finally:
-        #    p.nav_state_lock.release()
 
         # Recovery: clear low-battery flag once voltage returns above low threshold
         if voltage >= p.battery_low_voltage:
@@ -110,7 +100,6 @@ class handler:
                 reason=orover.event.lowBattery,
                 body={"voltage": voltage},
             )
-
         return True
 
 
@@ -129,21 +118,18 @@ def _as_float(value):
         return None
 
 
-# def _update_pose_from_motion(heading, left_speed, right_speed):
-#     now = time.time()
-#     dt = max(0.0, now - p.nav_state["kinematics"]["last_time"])
-#     p.nav_state["kinematics"]["last_time"] = now
-
-#     if heading is not None:
-#         p.nav_state["pose"]["heading_deg"] = heading
-
-#     if left_speed is None or right_speed is None:
-#         return
-
-#     v = 0.5 * (left_speed + right_speed)
-#     theta = math.radians(p.nav_state["pose"].get("heading_deg", 0.0) or 0.0)
-#     p.nav_state["pose"]["x_m"] += v * dt * math.cos(theta)
-#     p.nav_state["pose"]["y_m"] += v * dt * math.sin(theta)
+def update_pose_from_motion(heading, left_speed, right_speed):
+    now = time.time()
+    dt = max(0.0, now - p.nav_state["kinematics"]["last_time"])
+    p.nav_state["kinematics"]["last_time"] = now
+    if heading is not None:
+        p.nav_state["pose"]["heading_deg"] = heading
+    if left_speed is None or right_speed is None:
+        return
+    v = 0.5 * (left_speed + right_speed)
+    theta = math.radians(p.nav_state["pose"].get("heading_deg", 0.0) or 0.0)
+    p.nav_state["pose"]["x_m"] += v * dt * math.cos(theta)
+    p.nav_state["pose"]["y_m"] += v * dt * math.sin(theta)
 
 
 def sensor_to_angle_rad(sensor_name):
@@ -221,7 +207,6 @@ def _build_snapshot_payload():
             "left_mps": motion.get("left_speed"),
             "right_mps": motion.get("right_speed"),
         },
-        "battery_voltage": p.nav_state.get("battery_voltage"),
         "obstacle_count": len(obstacles),
         "grid": {
             "resolution_m": grid["resolution_m"],
@@ -239,12 +224,7 @@ def publish_pose_loop(interval_s):
             payload = _build_snapshot_payload()
         finally:
             p.nav_state_lock.release()
-
-    #    p.send_event(
-    #        src=orover.origin.orover_boss,
-    ##        reason=orover.state.pose,
-    #        body=payload,
-    #    )
+        p.send_event(src=orover.origin.orover_boss,reason=orover.state.pose,body=payload)
 
 
 def snapshot_logger_loop(log_interval_s):
@@ -281,7 +261,6 @@ if __name__ == "__main__":
     p.nav_state = {
         "motion": {},
         "obstacles": {},
-        "battery_voltage": None,
         "pose": {
             "x_m": 0.0,
             "y_m": 0.0,

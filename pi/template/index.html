@@ -10,6 +10,7 @@
     <meta charset="utf-8">
     <title>oRover Vehicle Control</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
   </head>
 
   <body>
@@ -28,12 +29,12 @@
 
     <div class="status-grid">
       <div class="status-box">
-        <div class="label">Temperature (°C)</div>
-        <div id="temperature" class="value">--</div>
+        <div class="label">Left speed</div>
+        <div id="leftSpeed" class="value">--</div>
       </div>
       <div class="status-box">
-        <div class="label">Speed (m/s)</div>
-        <div id="speed" class="value">--</div>
+        <div class="label">Right speed</div>
+        <div id="rightSpeed" class="value">--</div>
       </div>
       <div class="status-box">
         <div class="label">Angle (°)</div>
@@ -105,17 +106,11 @@
 
       <ul id="routeList"></ul>
     </div>
-
-    <!--div class="status-box" style="margin-top:24px;">
-      <h3>Navigation (observe-only)</h3>
-      <div>Pose: <span id="navPose">x=0.00, y=0.00, h=0.00</span></div>
-      <div>Speed: <span id="navSpeed">L=--, R=--</span></div>
-      <div>Obstacles: <span id="navObstacles">0</span></div>
-      <div>Grid: <span id="navGridMeta">no data</span></div>
-      <pre id="navGrid" style="max-height:180px; overflow:auto; background:#f4f4f4; padding:8px;"></pre>
-    </div-->
 </body>
 <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+<script>
+  const HB_INTERVAL_MS = {{ heartbeat_interval }} * 1000;
+</script>
 <script src="../static/js/orover.js"></script>
 </body>
 </html>

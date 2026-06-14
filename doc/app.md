@@ -30,13 +30,32 @@ This allows Flask request handling and eventbus message handling to run together
 ## Message handlers
 `app.py` registers handlers using the same naming convention as other bus
 clients:
-- `event_heartbeat(msg)`: updates heartbeat state and emits websocket updates
-- `state_battery(msg)`: emits battery voltage updates
-- `state_motion(msg)`: emits IMU updates
-- `state_pose(msg)`: accepts navigation snapshots from `orover_boss` and emits `nav_state`
+- `event_heartbeat(msg)`: emits Socket.IO `heartbeat` event `{me, ts}`
+- `state_battery(msg)`: emits Socket.IO `battery` event `{voltage}`
+- `state_motion(msg)`: emits Socket.IO `imu` event `{h, p, r}`
+- `state_pose(msg)`: validates and emits Socket.IO `pose` event (see below)
+
+## Pose handling
+`state_pose` reads the canonical nested payload from `boss.py`:
+```
+body.pose.x_m
+body.pose.y_m
+body.pose.heading_deg
+body.grid.preview   (optional 2-D list)
+body.ts             (optional timestamp)
+```
+For backward compatibility, flat top-level `body.x_m / body.y_m / body.heading_deg` is also accepted.
+All three coordinate fields must be numeric; malformed payloads are discarded with a warning log.
+
+The Socket.IO `pose` event emitted to browsers:
+```json
+{ "x": 0.0, "y": 0.0, "h": 0.0, "ts": "...", "grid": { "preview": [[...]] } }
+```
+The `grid` field is only present when a valid 2-D preview list was received.
 
 ## Emitting states to browser
-The emit_frequency in the config decides how often the browser is informed on new information. By default this is 1.0 second. All other handlers collect info and will add that to the default json "collect_state". Set emit_frequency to zero to stop emitting info.
+Each handler emits a Socket.IO event directly when a bus message arrives.
+There is no periodic batch-emit thread; updates reach the browser as events occur.
 
 Web UI note (2026-06-04):
 - The browser-side Socket.IO handlers in `pi/template/index.html` now normalize IMU and battery values before numeric formatting.

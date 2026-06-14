@@ -17,8 +17,8 @@ def readConfig(name_requested=False):
 
     # Check if config file is given as argument, otherwise use default
     parser = argparse.ArgumentParser(description=f"Object Recognition and Versatile Exploration Robot")
-    parser.add_argument("--config", default="config/config.ini"
-                       ,help="Path to configuration file (default: config/config.ini)")  
+    parser.add_argument("--config", default="../config.ini"
+                       ,help="Path to configuration file (default: ../config.ini)")  
     args = parser.parse_args()
 
     # Expand ~ to the user's home directory

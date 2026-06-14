@@ -202,6 +202,7 @@ class ugv:
         self.ugv_updates_interval = b.config.getint("ugv", "ugv_updates_interval", fallback=1) 
         self.ugv_updates_enabled = b.config.getboolean("ugv", "ugv_updates_enabled", fallback=False)    
         self._serial_rx_buffer = ""
+        self.voltage = 12.0 # Dummy voltage value until we receive real data from the UGV firmware, to prevent None values in the UI and logs before the first battery message is received.
 
         # Stores the current route to follow for moveTo commands, which can be used to implement obstacle avoidance or dynamic path replanning in the future.
         self.routetogo = None 
@@ -305,11 +306,18 @@ class ugv:
 
         # Keep dispatch explicit so it is easy to map firmware changes.
         if msg_type == 1001:
-            b.logger.debug("serial_dispatch -> base feedback")
-            b.send_event(
-                src=orover.origin.sensor_battery,
-                reason=orover.state.battery,
-                body={"voltage": msg.get("v")},
+            b.logger.debug("serial_dispatch -> base feedback - battery and motion status")
+            voltage = round(msg.get("v", self.voltage), 2)
+            # round to 2 decimals to prevent flooding the logs and UI with small voltage changes, 
+            # and only send an update if the voltage has changed significantly since the last update, 
+            # to reduce unnecessary events and updates in the UI.
+            if voltage != self.voltage:
+                self.voltage = voltage
+                b.logger.info(f"Battery voltage updated to {self.voltage} V")
+                b.send_event(
+                    src=orover.origin.sensor_battery,
+                    reason=orover.state.battery,
+                    body={"voltage": self.voltage},
             )
             b.send_event(
                 src=orover.origin.sensor_imu,

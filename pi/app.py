@@ -1,3 +1,5 @@
+import sys
+
 from flask import Flask, render_template, jsonify, request
 from flask_socketio import SocketIO
 import oroverlib as orover
@@ -6,6 +8,7 @@ import uuid
 import threading
 import csv
 import os
+import sys
 from base_process import baseprocess, handler
 
 
@@ -14,14 +17,9 @@ state = {"temperature": 22,
         "angle": 0,
         "voltage": 14}
 
-# Stuff to send to the browser will be collected in this shared state dict, which handlers 
-# can update and the emit_function will send to the frontend every few seconds.
 shared_state = {
-     "heartbeats": {}
-    ,"map": {}
-    ,"robot": {}
-    ,"path": {}
-    ,"imu": {}
+    "map": {},
+    "robot": {},
 }
 
 ###########################################################################
@@ -46,33 +44,35 @@ class handler:
            ,"body"  : JSON; contains parameters depending on type of message
     """
 
-    def event_heartbeat(self, msg):
-    
-        global shared_state
-        # event.heartbeat {"id": "2d2dbb81-64f8-46bd-9585-2b64280af9a2", "ts": "2026-03-14T19:55:52.527138", "src": 1000, 
-        # "me": "eventbus", "host": "robot", "prio": 5, "reason": 6402, "body": {"script": "eventbus"}}
+    def __init__(self):
+        # Stuff to send to the browser will be collected in this shared state dict, which handlers 
+        # can update and the emit_function will send to the frontend every few seconds.
+        pass
 
+    def _as_float(self, value):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+        
+
+    def event_heartbeat(self, msg):
         if "me" in msg and "ts" in msg:
-           # store name and timestamp of last heartbeat for each script
-           shared_state["heartbeats"][msg["me"]] = msg["ts"]
-           p.logger.debug(f"Stored heartbeat from {msg['me']}")
-           # emitting this info is organised by the emit_function, which runs in a separate thread 
-           # and sends the whole shared_state to the frontend every few seconds.
-        return True
-    
-    def state_battery(self, msg):
-        # Example handler for battery state messages, expects body to contain "voltage" field
-        voltage = msg.get("body", {}).get("voltage")
-        if voltage is not None:
-            p.logger.info(f"Battery voltage: {voltage} V")
-            # emitting this info is organised by the emit_function, which runs in a separate thread 
-            # and sends the whole shared_state to the frontend every few seconds.
-            shared_state["robot"]["voltage"] = voltage
+            p.logger.info(f"Heartbeat received from {msg['me']} at {msg['ts']}")
+            socketio.emit("heartbeat", {"me": msg["me"], "ts": msg["ts"]})
             return True
         else:
-            p.logger.warning("Received battery state message without voltage field")
+            p.logger.warning("Received heartbeat message missing 'me' or 'ts' fields")
             return False
+    
+
+    def state_battery(self, msg):
+        voltage = msg.get("body", {}).get("voltage")
+        p.logger.info(f"Battery data - Voltage: {voltage} V")
+        socketio.emit("battery", {"voltage": voltage})
+        return True
         
+
     def state_motion(self, msg): 
         # Example handler for IMU state messages, expects body to contain "heading", "pitch", and "roll" fields
         heading = msg.get("body", {}).get("heading")
@@ -80,40 +80,56 @@ class handler:
         roll = msg.get("body", {}).get("roll")
         if heading is not None and pitch is not None and roll is not None:
             p.logger.info(f"IMU data - Heading: {heading} deg, Pitch: {pitch} deg, Roll: {roll} deg")
-            shared_state["imu"] = {"h": heading, "p": pitch, "r": roll}
-            # change above
+            socketio.emit("imu", {"h": heading, "p": pitch, "r": roll})
             return True
         else:
             p.logger.warning("Received IMU state message without required fields")
             return False
 
+
     def state_pose(self, msg):
         # Read-only navigation snapshot updates from navigation process.
-        src = msg.get("src")
-        nav_src = int(orover.origin.orover_boss)
-        if int(src) != nav_src:
-            return False
-
         body = msg.get("body", {})
         if not isinstance(body, dict):
+            p.logger.warning(f"Discarding pose update: invalid body type {type(body)}")
             return False
 
-        shared_state["map"] = body.get("grid", {}).get("preview")
-        shared_state["pose"] = (
-            body.get("pose", {}).get("x_m", 0.0),
-            body.get("pose", {}).get("y_m", 0.0),
-            body.get("pose", {}).get("heading_deg", 0.0),
-        )
+        # Canonical pose payload shape is body.pose.{x_m,y_m,heading_deg}.
+        # Keep backward compatibility with older flat body.{x_m,y_m,heading_deg} payloads.
+        pose_obj = body.get("pose", body)
+        if not isinstance(pose_obj, dict):
+            p.logger.warning("Discarding pose update: body.pose is not an object")
+            return False
+
+        x = self._as_float(pose_obj.get("x_m"))
+        y = self._as_float(pose_obj.get("y_m"))
+        h = self._as_float(pose_obj.get("heading_deg"))
+        if x is None or y is None or h is None:
+            p.logger.warning(f"Discarding pose update: non-numeric pose values in {pose_obj}")
+            return False
+
+        payload = {"x": x, "y": y, "h": h}
+        pose_ts = body.get("ts", msg.get("ts"))
+        if pose_ts is not None:
+            payload["ts"] = pose_ts
+
+        # Forward optional preview grid when present so grid.html can render map cells.
+        preview = body.get("grid", {}).get("preview")
+        if isinstance(preview, list) and (len(preview) == 0 or isinstance(preview[0], list)):
+            payload["grid"] = {"preview": preview}
+            shared_state["map"] = preview
+
+        shared_state["robot"] = [x, y, h]
+
+        p.logger.info(f"Pose update - x={x:.3f}, y={y:.3f}, h={h:.2f}")
+        socketio.emit("pose", payload)
         return True
     
     
-class base(baseprocess):
+class base(baseprocess): 
     pass
 
-
-
 ROUTE_DIR = "routes"
-
 
 def rx_commands(filename):
     #open file and fill commands
@@ -126,7 +142,7 @@ def rx_commands(filename):
             route_payload["route"].append({
                 "distance": float(row["distance"]),
                 "angle": float(row["angle"]),
-            })
+            })                                                                                                                          
 
     commands.append(route_payload)
     p.send_event(src=orover.controller.remote_interface,
@@ -143,9 +159,9 @@ def rx_commands(filename):
 # so that handlers can safely reference 'socketio' as soon as messages arrive.
 config, _ = orover.readConfig(name_requested=True)
 
-import os as _os, sys as _sys
-_script = _os.path.basename(_sys.argv[0])
-_app_name = next((name for name, path in config.items("scripts") if _script == _os.path.basename(path.strip())), _os.path.splitext(_script)[0]) if config.has_section("scripts") else _os.path.splitext(_script)[0]
+
+_script = os.path.basename(sys.argv[0])
+_app_name = next((name for name, path in config.items("scripts") if _script == os.path.basename(path.strip())), os.path.splitext(_script)[0]) if config.has_section("scripts") else os.path.splitext(_script)[0]
 
 app = Flask(_app_name
            ,static_folder   = config.get("app","static_folder",   fallback="static")
@@ -161,27 +177,35 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # Now start the base process (which launches the ZMQ listener thread); socketio is defined above.
 p = base(handler=handler(),threadingsubsocket=True)  # WITH threading enabled for ZMQ listener
 
+# ---------------------------
+# / route -> frontend sends messages to BOSS
+# ---------------------------
 @app.route("/")
 def index():
     hb_interval = config.getint("orover", "heartbeat_interval", fallback=20)
     return render_template("index.html", heartbeat_interval=hb_interval)
 
-
+# ---------------------------
+# /grid route -> frontend sends messages to BOSS
+# ---------------------------
 @app.route("/grid")
 def grid_view():
     return render_template("grid.html")
 
-
+# ---------------------------
+# /grid-data -> frontend sends messages to BOSS
+# ---------------------------
 @app.route("/grid-data")
 def grid_data():
+    # Return the current grid and robot state as JSON for the frontend to render.
     return jsonify({
-        "map": shared_state.get("map"),
-        "robot": shared_state.get("robot"),
+        "map": shared_state.get("map", {}),
+        "robot": shared_state.get("robot", {}),
     })
 
 
 # ---------------------------
-# EXAMPLE HTTP route -> publish ZMQ
+# /publish route -> frontend sends messages to BOSS
 # ---------------------------
 @app.route("/publish", methods=["POST"])
 def publish():
@@ -193,9 +217,8 @@ def publish():
 
     return jsonify({"status": "sent", "message": message})
 
-
 # ---------------------------
-# EXAMPLE HTTP route -> frontend fetch messages
+# /messages route -> frontend fetch messages
 # ---------------------------
 @app.route("/messages")
 def get_messages():  
@@ -207,7 +230,9 @@ def get_messages():
 
     return jsonify(messages)
 
-
+# ---------------------------
+# /control route -> frontend sends control commands to BOSS
+# ---------------------------
 @app.route("/control", methods=["POST"])
 def control():
    
@@ -247,14 +272,18 @@ def control():
 
     #return jsonify({"status": "ok", "action": action, "state": state})
 
-
+# ---------------------------
+# /route-files route -> frontend sends messages to BOSS
+# ---------------------------
 @app.route("/route-files", methods=["GET"])
 def route_files():
     os.makedirs(ROUTE_DIR, exist_ok=True)
     files = sorted(f for f in os.listdir(ROUTE_DIR) if f.endswith(".csv"))
     return jsonify(files=files)
 
-
+# ---------------------------
+# /readroute route -> frontend sends messages to BOSS
+# ---------------------------
 @app.route("/readroute", methods=["POST"])
 def readroute():
     data = request.get_json() or {}
@@ -268,7 +297,7 @@ def readroute():
     return jsonify(status="route processed", filename=filename)
 
 # -----------------------------
-# Route processing
+# /route route -> frontend sends route data
 # -----------------------------
 @app.route('/route', methods=['POST'])
 def route():
@@ -300,28 +329,13 @@ def route():
     return jsonify(status="route accepted", steps=len(route), filename=filename)
 
 ###########################################################################
-# Other stuff
+# Main
 ###########################################################################
 
-def emit_function():
-    # send information to frontend every few seconds;
-    while True:
-        emit_frequency = config.getfloat("app", "emit_frequency", fallback=1.0)
-        if emit_frequency <= 0:
-            # No emitting. Refresh in 5 seconds to check if config changed.
-            socketio.sleep(5) 
-        else:
-            socketio.emit(shared_state)
-            socketio.sleep(emit_frequency)  # Sleep for the configured interval
-        
-
-#### Main execution starts here ####
 if __name__ == "__main__":
     debug_mode = config.getboolean('app', 'debug', fallback=True)
     host = config.get('app', 'host', fallback='localhost')
     port = config.getint('app', 'port', fallback=5000)
 
-    # start emit thread for heartbeats and other state updates
-    socketio.start_background_task(emit_function)
     p.logger.info(f"Starting Flask app with debug={debug_mode}, host={host}, port={port}")
     socketio.run(app, host=host, port=port, debug=debug_mode, use_reloader=False,allow_unsafe_werkzeug=True)

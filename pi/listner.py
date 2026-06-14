@@ -19,6 +19,18 @@ def demogrify(topicmsg):
      return topic, json.loads(msgtxt)
 
 
+def enum_to_name(val) -> str:
+        # Return the best-effort name for a numeric type.
+        for cls in (orover.priority, orover.operational_mode, orover.lifecycle_stage, orover.power_source,
+                    orover.health_status, orover.origin,orover.actuator, orover.controller, orover.cmd,
+                    orover.state, orover.event):
+            try:
+                return f"{cls(val).__class__.__name__}.{cls(val).name}"
+            except ValueError:
+                pass
+        return None
+
+
 def _parse_csv(value):
      # Parse comma-separated values into a cleaned list.
      if not value:
@@ -47,6 +59,8 @@ def load_listener_settings():
      ignore_topics = list(dict.fromkeys(ignore_topics))
 
      print(f"Listener using config file {config_file}, section [{section}], endpoint {endpoint}")
+     print(f"Listener subscribing to topic filter '{subscribe_filter}' and ignoring topics: {ignore_topics}")
+     print("----")
      return endpoint, subscribe_filter, ignore_topics
 
 ctx = zmq.Context()
@@ -60,4 +74,8 @@ while True:
     
     topic, msgdict = demogrify(msg)
     if topic not in ignore_topics:
-        print(f"{msgdict}")
+        # print 6 most right characters of id
+        # next only time of timestamp '2026-06-13T21:32:39.215813'
+       print(f"{msgdict['id'][-13:]} {msgdict['ts'].split('T')[1][:8]} {msgdict['me'].ljust(8)} "\
+             f"{msgdict['src']} => {(enum_to_name(msgdict['src']) or '').ljust(32)} "\
+             f"{msgdict['reason']} => {(enum_to_name(msgdict['reason']) or '').ljust(32)} {msgdict['body']}")

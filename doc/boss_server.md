@@ -54,23 +54,33 @@ Incoming messages are validated before dispatch. The validation includes:
 Messages that fail validation are discarded and logged.
 
 ## Current BOSS handlers
-Typical handlers in `boss.py` are:
 - `event_heartbeat(msg)`: stores heartbeat timestamps per process
-- `event_object_detected(msg)`: validates obstacle distances and updates the local grid map
-- `state_motion(msg)`: stores heading/pitch/roll and left/right speed, then updates pose integration
-- `state_battery(msg)`: stores latest battery voltage in navigation state
+- `event_object_detected(msg)`: validates obstacle distances and updates the local occupancy grid
+- `state_motion(msg)`: extracts heading, pitch, roll, left/right speed; calls `update_pose_from_motion`
+- `state_battery(msg)`: triggers `event.lowBattery` or `cmd.shutdown` based on configured voltage thresholds
+
+## Dead-reckoning pose integration
+`update_pose_from_motion(heading, left_speed, right_speed)` is called on every `state.motion` message:
+- integrates forward velocity `v = (left + right) / 2` over elapsed time `dt`
+- updates `nav_state.pose.x_m` and `y_m` from heading and velocity
+- overwrites `heading_deg` from IMU heading when present
 
 ## Background loops
 In addition to message handlers, `boss.py` starts optional daemon loops (config-driven):
 - `snapshot_logger_loop`: periodic debug snapshot logging
-- `publish_pose_loop`: publishes aggregated navigation snapshots as `state.pose`
+- `publish_pose_loop`: publishes `state.pose` snapshots at configured interval
 
-Published pose snapshot body includes:
-- pose (`x_m`, `y_m`, `heading_deg`)
-- speed (`left_mps`, `right_mps`)
-- battery voltage
-- obstacle count
-- occupancy grid preview
+Published `state.pose` body (canonical schema):
+```
+body.pose.x_m          float — robot x position in metres
+body.pose.y_m          float — robot y position in metres
+body.pose.heading_deg  float — robot heading in degrees
+body.speed.left_mps    float — left wheel speed
+body.speed.right_mps   float — right wheel speed
+body.obstacle_count    int
+body.grid.preview      2-D list of occupancy values
+body.ts                ISO timestamp of last motion update
+```
 
 ## Configuration
 BOSS is started by `launcher.py` via the `[scripts]` section in `config.ini`.

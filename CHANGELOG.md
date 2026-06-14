@@ -2,6 +2,67 @@
 
 All notable changes to this project are documented in this file.
 
+## Update 2026-06-14
+
+### Pose bridge aligned to canonical nested payload contract
+**Files Modified:** `pi/app.py`
+
+- `state_pose` handler now reads `body.pose.{x_m,y_m,heading_deg}` (canonical) with fallback to flat `body.{x_m,y_m,heading_deg}` for backward compatibility.
+- Added numeric validation; malformed pose values are logged and discarded.
+- Pose timestamp forwarded as `ts` in Socket.IO `pose` event.
+- Grid preview validated as 2-D list before forwarding; saved to `shared_state["map"]`.
+- Removed obsolete source-filter check (`src == orover_boss`) so any valid pose publisher works.
+- Removed broken `emit_function` background thread and its broken `socketio.emit(shared_state)` call.
+- Restored direct per-event Socket.IO emit for `heartbeat`, `battery`, `imu`, and `pose`.
+- `/grid-data` REST fallback now returns live `shared_state` map and robot values.
+
+### Boss navigation — state_motion and pose publisher re-enabled
+**File Modified:** `pi/boss.py`
+
+- Uncommented and cleaned up `update_pose_from_motion`: dead-reckoning integrator now active.
+- `state_motion` handler stores heading/speed and calls `update_pose_from_motion` on every motion update.
+- `publish_pose_loop` now correctly calls `p.send_event` (was commented out).
+- Removed stale `battery_voltage` field from nav state and snapshot payload.
+- Removed commented-out nav state lock code blocks.
+
+### Grid page — canvas sizing and connection status
+**Files Modified:** `pi/template/grid.html`, `pi/static/style.css`
+
+- Fixed canvas collapsing bug: replaced `height: auto` with `aspect-ratio: 1 / 1` on `#gridCanvas`.
+- Added connection status bar (coloured dot + label): connecting / connected / live / disconnected.
+- Added `drawWaiting()` placeholder shown on canvas before first pose data arrives.
+- Socket.IO handler now caches `lastMap` and `lastRobot` so robot text updates even without a grid preview.
+- Accepts both flat (`x/y/h`) and nested (`pose.x/pose.y/pose.h`) payload formats.
+- Added `connect`, `disconnect`, `connect_error` event handlers for visibility.
+- Added `window.resize` handler to redraw on layout changes without page reload.
+- Replaced `io()` with throttled reconnection options to reduce thread pressure.
+
+### Frontend JavaScript extracted to `orover.js`
+**Files Modified:** `pi/static/js/orover.js`, `pi/template/index.html`
+
+- Moved inline JavaScript from `index.html` into `pi/static/js/orover.js`.
+- `orover.js` now handles Socket.IO `heartbeat`, `battery`, and `imu` events with DOM updates.
+- Heartbeat staleness coloring (`HB_STALE_MS`) moved to `orover.js`.
+- `template/base.html` removed (was unused).
+
+### Listener improvements
+**File Modified:** `pi/listner.py`
+
+- Added local `enum_to_name` helper (independent of `baseprocess`).
+- Improved message print: shows `id[-13:]`, timestamp, `me`, `src` enum name, `reason` enum name, and body.
+- Source and reason names padded to fixed width (32 chars).
+- Added startup summary of subscribe filter and ignored topics.
+
+### Pose test publisher — canonical payload and configurable speed
+**File Added:** `pi/test/pose_rectangle_test.py`
+
+- Publishes `state.pose` with canonical nested `body.pose.{x_m,y_m,heading_deg}` and `body.grid.preview`.
+- Simulates robot driving a 1 m × 2 m rectangle.
+- Default interval `0.25 s`, default `1` loop.
+- Adds `sys.path` bootstrap so it runs from `pi/test/` without install.
+
+---
+
 ## Update 2026-06-13
 
 ### Config file location migration and tracking policy

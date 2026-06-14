@@ -3,16 +3,43 @@
      Description  javascript library for oRover web interface
 */
 
+const HB_STALE_MS    = HB_INTERVAL_MS * 1.2;
+
 // Socket.IO client setup
 const socket = io()
-socket.on("connect", () => {
-  console.log("Connected to server");
-});
 
 function asFixed(value, digits = 2, fallback = "--") {
   const n = Number(value);
   return Number.isFinite(n) ? n.toFixed(digits) : fallback;
 }
+
+/* 
+   SOCKET.IO EVENT HANDLERS
+   These listen for messages from the server and update the UI accordingly.
+   Each handler corresponds to a specific message type emitted by the server.
+*/
+
+socket.on("connect", () => {
+  console.log("Connected to server");
+});
+
+socket.on("heartbeat", (data) => {
+  const tbody = document.getElementById("heartbeat");
+  const ts = data.ts && data.ts.includes("T")
+    ? data.ts.split("T")[1].substring(0, 8)
+    : data.ts;
+  let row = tbody.querySelector(`tr[data-name="${data.me}"]`);
+  if (!row) {
+    row = document.createElement("tr");
+    row.dataset.name = data.me;
+    row.innerHTML = `<td style="text-align:left">${data.me}</td><td class="hb-ts"></td>`;
+    tbody.appendChild(row);
+  }
+  const tsCell = row.querySelector(".hb-ts");
+  tsCell.textContent = ts;
+  tsCell.style.color = "";
+  row.dataset.lastSeen = Date.now();
+});
 
 socket.on("statusUpdate", (data) => {
   console.log("Received statusUpdate:", data);
@@ -21,19 +48,20 @@ socket.on("statusUpdate", (data) => {
   //document.getElementById("angle").textContent = asFixed(data.angle);
 });
 
-//socket.on("imu_state", (data) => {
-//  //  socketio.emit("imu_state", {"heading": heading, "pitch": pitch, "roll": roll})
-//  console.log("Received:", data);
-//  document.getElementById("imuHeading").textContent = asFixed(data.heading);
-//  document.getElementById("imuPitch").textContent = asFixed(data.pitch);
-//  document.getElementById("imuRoll").textContent = asFixed(data.roll);
-//});
+socket.on("imu", (data) => {
+  document.getElementById("imuHeading").textContent = asFixed(data.h);
+  document.getElementById("imuPitch").textContent = asFixed(data.p);
+  document.getElementById("imuRoll").textContent = asFixed(data.r);
+  document.getElementById("leftSpeed").textContent = asFixed(data.left_speed);
+  document.getElementById("rightSpeed").textContent = asFixed(data.right_speed);  
+});
 
-//socket.on("battery_state", (data) => {
-//  console.log("Received:", data);
-//  document.getElementById("voltage").textContent = asFixed(data.voltage);
-//});
-//socket.on("nav_state", (data) => {
+socket.on("battery", (data) => {
+  document.getElementById("voltage").textContent = asFixed(data.voltage);
+});
+
+socket.on("pose", (data) => {
+  console.log("pose - Received:", data);
 //  const pose = data.pose || {};
 //  const speed = data.speed || {};
 //  const grid = data.grid || {};
@@ -56,29 +84,7 @@ socket.on("statusUpdate", (data) => {
 //    }).join("")
 //  ).join("\n");
 //  document.getElementById("navGrid").textContent = chars;
-//});
-
-const HB_INTERVAL_MS = {{ heartbeat_interval }} * 1000;
-const HB_STALE_MS    = HB_INTERVAL_MS * 1.2;
-
-//socket.on("heartbeat", (data) => {
-//  const tbody = document.getElementById("heartbeat");
-//  // Extract HH:MM:SS from ISO timestamp e.g. "2026-04-12T14:23:01.123456"
-//  const ts = data.timestamp && data.timestamp.includes("T")
-//    ? data.timestamp.split("T")[1].substring(0, 8)
-//    : data.timestamp;
-//  let row = tbody.querySelector(`tr[data-name="${data.me}"]`);
-//  if (!row) {
-//    row = document.createElement("tr");
-//    row.dataset.name = data.me;
-//    row.innerHTML = `<td style="text-align:left">${data.me}</td><td class="hb-ts"></td>`;
-//    tbody.appendChild(row)//;
-//  }
-//  const tsCell = row.querySelector(".hb-ts");
-//  tsCell.textContent = ts;
-//  tsCell.style.color = "";
-//  row.dataset.lastSeen = Date.now();
-//});
+});
 
 // Periodically mark timestamps red when no heartbeat received within interval * 1.2
 setInterval(() => {
@@ -215,71 +221,23 @@ async function loadRouteFile(filename) {
   }
 }
 
-/*    let intervalId = null;
-
-    function startRepeating() {
-        if (intervalId === null) {
-            intervalId = setInterval(() => {
-                sendAction('forward');
-            }, 300); // elke 300 ms
-        }
-    }
-
-    function stopRepeating() {
-        if (intervalId !== null) {
-            clearInterval(intervalId);
-            intervalId = null;
-            sendAction('stop');
-        }
-    }
-
-    const btn = document.getElementById("fwdBtn");
-
-    // Desktop
-    btn.addEventListener("mousedown", startRepeating);
-    btn.addEventListener("mouseup", stopRepeating);
-    btn.addEventListener("mouseleave", stopRepeating);
-
-    // Mobile
-    btn.addEventListener("touchstart", startRepeating);
-    btn.addEventListener("touchend", stopRepeating);
-*/
-
 const intervals = {};   // store interval per action
 const INTERVAL_MS = 100; // faster = more responsive stop
-
-function startRepeating(action) {
-    //if (!intervals[action]) {
-        sendAction(action); // immediate first command
-     //   intervals[action] = setInterval(() => {
-    //        sendAction(action);
-   //     }, INTERVAL_MS);
- //   }
-}
-
-function stopRepeating(action) {
-  //  if (intervals[action]) {
-  //      clearInterval(intervals[action]);
-  //      delete intervals[action];
-        sendAction('stop');
-  //  }
-}
 
 function bindButton(buttonId) {
     const btn = document.getElementById(buttonId);
     const action = btn.dataset.action;
 
     // Desktop
-    btn.addEventListener("mousedown", () => startRepeating(action));
-    btn.addEventListener("mouseup",   () => stopRepeating(action));
-    //btn.addEventListener("mouseleave",() => stopRepeating(action));
+    btn.addEventListener("mousedown", () => sendAction('start'));
+    btn.addEventListener("mouseup",   () => sendAction('stop'));
 
     // Mobile
     btn.addEventListener("touchstart", e => {
         e.preventDefault(); // important for mobile!
-        startRepeating(action);
+        sendAction(action);
     });
-    btn.addEventListener("touchend", () => stopRepeating(action));
+    btn.addEventListener("touchend", () => sendAction('stop'));
 }
 
 // Bind all buttons
