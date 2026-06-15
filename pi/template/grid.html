@@ -299,6 +299,7 @@
 
         // Accept both flat pose payload (x/y/h) and nested pose object for compatibility.
         const poseObj = data?.pose || data;
+
         const robot = [poseObj?.x, poseObj?.y, poseObj?.h];
 
         if (Array.isArray(preview) && preview.length > 0 && Array.isArray(preview[0])) {
@@ -309,7 +310,7 @@
         }
 
         setStatus("connected", "Live");
-        console.log("Received pose update:", { robot: lastRobot, hasPreview: !!lastMap });
+        console.log("Received pose update:", "x:", poseObj?.x, "y:", poseObj?.y, "h:", poseObj?.h);
         renderGrid(lastMap, lastRobot);
       });
 

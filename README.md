@@ -44,6 +44,13 @@ Please follow link to [Technical Documentation](doc/technical%20documentation.md
 - The tests share a common helper library so new bus scenarios can be added without duplicating PUB/SUB setup or message formatting.
 - See [pi/test/README_bus_tests.md](pi/test/README_bus_tests.md) for run examples and scenario coverage.
 
+## Recent update (2026-06-15)
+
+- Added a live debug log page at `/debug` that follows the active `orover.log` file.
+- The debug page now supports filtering by source, level, and keyword, with source choices driven from the `[scripts]` section of `config/config.ini`.
+- A Pause/Resume button lets you stop auto-refresh while inspecting a specific log point.
+- The debug layout was compacted so the message column has more room.
+
 ## Start and stop
 
 From the `pi/` directory:

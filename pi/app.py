@@ -174,6 +174,38 @@ app.config['SECRET_KEY'] = config.get("app","secret_key", fallback="default_secr
 commands = []  # globals
 socketio = SocketIO(app, cors_allowed_origins="*")
 
+
+def get_active_logfile_path():
+    logdir = config.get("orover", "logdir", fallback="logs")
+    logfile_name = config.get("orover", "logfile", fallback="orover.log")
+    return os.path.join(logdir, logfile_name)
+
+
+def tail_logfile(filepath, max_lines=300):
+    if not os.path.isfile(filepath):
+        return []
+
+    block_size = 4096
+    newline_count = 0
+    chunks = []
+
+    with open(filepath, "rb") as handle:
+        handle.seek(0, os.SEEK_END)
+        end_pos = handle.tell()
+        remaining = end_pos
+
+        while remaining > 0 and newline_count <= max_lines:
+            read_size = min(block_size, remaining)
+            remaining -= read_size
+            handle.seek(remaining)
+            chunk = handle.read(read_size)
+            chunks.append(chunk)
+            newline_count += chunk.count(b"\n")
+
+    data = b"".join(reversed(chunks)).decode("utf-8", errors="replace")
+    lines = data.splitlines()
+    return lines[-max_lines:]
+
 # Now start the base process (which launches the ZMQ listener thread); socketio is defined above.
 p = base(handler=handler(),threadingsubsocket=True)  # WITH threading enabled for ZMQ listener
 
@@ -192,6 +224,20 @@ def index():
 def grid_view():
     return render_template("grid.html")
 
+
+@app.route("/debug")
+def debug_view():
+    sources = []
+    if config.has_section("scripts"):
+        for name, path in config.items("scripts"):
+            label = name
+            script_name = os.path.basename(path.strip())
+            if script_name and script_name != name:
+                label = f"{name} ({script_name})"
+            sources.append({"value": name, "label": label})
+
+    return render_template("debug.html", sources=sources)
+
 # ---------------------------
 # /grid-data -> frontend sends messages to BOSS
 # ---------------------------
@@ -201,6 +247,20 @@ def grid_data():
     return jsonify({
         "map": shared_state.get("map", {}),
         "robot": shared_state.get("robot", {}),
+    })
+
+
+@app.route("/debug-log")
+def debug_log():
+    logfile = get_active_logfile_path()
+    tail = int(request.args.get("tail", 300))
+    tail = max(1, min(tail, 2000))
+    lines = tail_logfile(logfile, tail)
+    mtime = os.path.getmtime(logfile) if os.path.isfile(logfile) else None
+    return jsonify({
+        "logfile": logfile,
+        "mtime": mtime,
+        "lines": lines,
     })
 
 

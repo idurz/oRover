@@ -2,6 +2,17 @@
 
 All notable changes to this project are documented in this file.
 
+## Update 2026-06-15
+
+### Debug log viewer added
+**Files Modified:** `pi/app.py`, `pi/template/debug.html`, `pi/static/style.css`, `README.md`, `doc/quick-start.md`, `doc/configuration.md`
+
+- Added a live `/debug` page that tails the active `orover.log` file.
+- Added source, level, and keyword filters, with Source populated from the `[scripts]` section of `config/config.ini`.
+- Added a Pause/Resume control to stop auto-refresh while inspecting a log point.
+- Compacted the layout so the message column gets more room, including optional GUID visibility and shorter timestamp display.
+- Updated the main README and configuration/startup docs to describe the new debug viewer workflow.
+
 ## Update 2026-06-14
 
 ### Pose bridge aligned to canonical nested payload contract

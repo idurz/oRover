@@ -229,7 +229,7 @@ class ugv:
         time.sleep(10) # Initial delay before starting updates, to allow system to initialize and open serial port
         while b.running:
             if self.ugv_updates_enabled:
-                serialmsg = json.dumps({"T": 130})
+                serialmsg = json.dumps({"T":"130"})
                 self.write_serial(serialmsg)   
             time.sleep(self.ugv_updates_interval)
 

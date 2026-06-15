@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import datetime as dt
+import math
 import os
 import sys
 import time
@@ -44,7 +45,12 @@ def _world_to_cell(x_m: float, y_m: float, cells: int, span_x_m: float, span_y_m
     return row, col
 
 
-def _build_rect_trajectory(width_m: float, height_m: float, step_m: float) -> list[tuple[float, float, float]]:
+def _build_rect_trajectory(
+    width_m: float,
+    height_m: float,
+    step_m: float,
+    start_from_center: bool = False,
+) -> list[tuple[float, float, float]]:
     # Rectangle corners centered at origin.
     x0, x1 = -width_m / 2.0, width_m / 2.0
     y0, y1 = -height_m / 2.0, height_m / 2.0
@@ -70,6 +76,19 @@ def _build_rect_trajectory(width_m: float, height_m: float, step_m: float) -> li
     for y in _linspace(y1, y0, n_h)[1:]:
         points.append((x0, y, 270.0))
 
+    if start_from_center:
+        center_x, center_y = 0.0, 0.0
+        dx = x0 - center_x
+        dy = y0 - center_y
+        dist = math.hypot(dx, dy)
+        heading_to_corner = (math.degrees(math.atan2(dy, dx)) + 360.0) % 360.0
+        n_center = max(2, int(round(dist / step_m)) + 1)
+        approach = [
+            (x, y, heading_to_corner)
+            for x, y in zip(_linspace(center_x, x0, n_center), _linspace(center_y, y0, n_center))
+        ]
+        return approach + points[1:]
+
     return points
 
 
@@ -86,6 +105,7 @@ def main() -> int:
     parser.add_argument("--interval", type=float, default=0.25, help="Publish interval per pose in seconds (default: 0.25)")
     parser.add_argument("--cells", type=int, default=41, help="Preview grid size NxN (default: 41)")
     parser.add_argument("--loops", type=int, default=1, help="Number of rectangle loops (0 = infinite)")
+    parser.add_argument("--start-center", action="store_true", help="Start in center (0,0), then move to rectangle and trace it")
     args = parser.parse_args()
 
     if args.width <= 0 or args.height <= 0 or args.step <= 0 or args.interval <= 0:
@@ -94,7 +114,7 @@ def main() -> int:
     pub_endpoint, sub_endpoint = read_eventbus_config(args.config)
     topic = enum_to_topic(orover.state.pose)
 
-    trajectory = _build_rect_trajectory(args.width, args.height, args.step)
+    trajectory = _build_rect_trajectory(args.width, args.height, args.step, start_from_center=args.start_center)
     if not trajectory:
         raise SystemExit("No trajectory points generated")
 

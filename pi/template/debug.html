@@ -1,0 +1,249 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>oRover Debug Log</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+  </head>
+
+  <body class="grid-page">
+    <div class="debug-shell">
+      <div class="debug-header">
+        <div>
+          <p class="grid-kicker">Diagnostics</p>
+          <h2>Live Debug Log</h2>
+        </div>
+        <div class="page-link-row">
+          <a class="page-link" href="/">Back to Control Panel</a>
+          <a class="page-link" href="/grid">Open Navigation Grid</a>
+          <button id="pauseButton" class="page-link page-action" type="button">Pause</button>
+        </div>
+      </div>
+
+      <div class="debug-filters">
+        <div class="filter-card">
+          <label for="sourceFilter">Source</label>
+          <select id="sourceFilter">
+            <option value="all">All sources</option>
+            {% for source in sources %}
+            <option value="{{ source.value }}">{{ source.label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="filter-card">
+          <label for="levelFilter">Level</label>
+          <select id="levelFilter">
+            <option value="all">All levels</option>
+            <option value="debug">Debug</option>
+            <option value="info">Info</option>
+            <option value="warning">Warning</option>
+            <option value="error">Error</option>
+            <option value="critical">Critical</option>
+          </select>
+        </div>
+        <div class="filter-card filter-keywords-card">
+          <label for="keywordFilter">Keywords</label>
+          <input id="keywordFilter" type="text" placeholder="Search message text, source, guid, or timestamp">
+        </div>
+        <div class="filter-card filter-toggle-card">
+          <label for="guidToggle">Show GUID</label>
+          <label class="toggle-row filter-toggle-row" for="guidToggle">
+            <input id="guidToggle" type="checkbox">
+            <span>Visible</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="status-box log-panel">
+        <div class="log-table-wrap">
+          <table class="log-table">
+            <thead>
+              <tr>
+                <th class="log-ts">Time</th>
+                <th class="log-src">Source</th>
+                <th class="log-level">Level</th>
+                <th class="log-guid hidden-guid">Guid</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody id="logBody">
+              <tr><td colspan="5" class="log-empty">Waiting for log data…</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      const state = {
+        entries: [],
+        filters: {
+          source: "all",
+          level: "all",
+          keyword: "",
+        },
+      };
+
+      const logBody = document.getElementById("logBody");
+      const sourceFilter = document.getElementById("sourceFilter");
+      const levelFilter = document.getElementById("levelFilter");
+      const keywordFilter = document.getElementById("keywordFilter");
+      const guidToggle = document.getElementById("guidToggle");
+      const pauseButton = document.getElementById("pauseButton");
+
+      const refreshState = {
+        paused: false,
+        timerId: null,
+      };
+
+      function compactTimestamp(value) {
+        const match = String(value ?? "").match(/(\d{2}:\d{2}:\d{2})(?:,\d{3})?$/);
+        return match ? match[1] : String(value ?? "");
+      }
+
+      function escapeHtml(value) {
+        return String(value ?? "").replace(/[&<>\"']/g, (char) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#39;",
+        }[char]));
+      }
+
+      function parseLogLine(line) {
+        const match = line.match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(?:,\d{3})?)\s+(\S+)\s+(\S+)\s+(\S+)\s+(.*)$/);
+        if (!match) {
+          return {
+            ts: "",
+            src: "",
+            level: "info",
+            guid: "",
+            message: line,
+            raw: line,
+          };
+        }
+
+        return {
+          ts: match[1],
+          src: match[2].trim(),
+          level: match[3].trim().toLowerCase(),
+          guid: match[4].trim(),
+          message: match[5],
+          raw: line,
+        };
+      }
+
+      function matchesFilters(entry) {
+        const sourceQuery = state.filters.source;
+        const keywordQuery = state.filters.keyword.toLowerCase();
+        const levelQuery = state.filters.level;
+
+        if (sourceQuery !== "all" && entry.src !== sourceQuery) {
+          return false;
+        }
+
+        if (levelQuery !== "all" && entry.level !== levelQuery) {
+          return false;
+        }
+
+        if (keywordQuery) {
+          const haystack = [entry.ts, entry.src, entry.level, entry.guid, entry.message, entry.raw]
+            .join(" ")
+            .toLowerCase();
+          if (!haystack.includes(keywordQuery)) {
+            return false;
+          }
+        }
+
+        return true;
+      }
+
+      function levelClass(level) {
+        return `level-${level || "info"}`;
+      }
+
+      function renderLogs() {
+        const visible = state.entries.filter(matchesFilters);
+
+        if (visible.length === 0) {
+          logBody.innerHTML = '<tr><td colspan="5" class="log-empty">No log entries match the current filters.</td></tr>';
+          return;
+        }
+
+        logBody.innerHTML = visible.map((entry) => {
+          return `
+            <tr class="log-row">
+              <td class="log-ts" title="${escapeHtml(entry.ts)}">${escapeHtml(compactTimestamp(entry.ts))}</td>
+              <td class="log-src">${escapeHtml(entry.src)}</td>
+              <td class="log-level ${levelClass(entry.level)}">${escapeHtml(entry.level)}</td>
+              <td class="log-guid hidden-guid">${escapeHtml(entry.guid)}</td>
+              <td class="log-message">${escapeHtml(entry.message)}</td>
+            </tr>
+          `;
+        }).join("");
+      }
+
+      async function refreshLogs() {
+        if (refreshState.paused) {
+          return;
+        }
+
+        try {
+          const response = await fetch(`/debug-log?tail=400`);
+          if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+          }
+
+          const data = await response.json();
+          state.entries = (data.lines || []).map(parseLogLine);
+          renderLogs();
+        } catch (error) {
+          console.error("debug-log refresh failed", error);
+        }
+      }
+
+      function wireFilterInputs() {
+        sourceFilter.addEventListener("change", () => {
+          state.filters.source = sourceFilter.value;
+          renderLogs();
+        });
+
+        levelFilter.addEventListener("change", () => {
+          state.filters.level = levelFilter.value;
+          renderLogs();
+        });
+
+        keywordFilter.addEventListener("input", () => {
+          state.filters.keyword = keywordFilter.value.trim();
+          renderLogs();
+        });
+
+        guidToggle.addEventListener("change", () => {
+          document.querySelectorAll(".hidden-guid").forEach((cell) => {
+            cell.style.display = guidToggle.checked ? "table-cell" : "none";
+          });
+        });
+
+        pauseButton.addEventListener("click", () => {
+          refreshState.paused = !refreshState.paused;
+          pauseButton.textContent = refreshState.paused ? "Resume" : "Pause";
+
+          if (!refreshState.paused) {
+            refreshLogs();
+          }
+        });
+      }
+
+      wireFilterInputs();
+      guidToggle.checked = false;
+      document.querySelectorAll(".hidden-guid").forEach((cell) => {
+        cell.style.display = "none";
+      });
+      refreshLogs();
+      refreshState.timerId = setInterval(refreshLogs, 1500);
+    </script>
+  </body>
+</html>

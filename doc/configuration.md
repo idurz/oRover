@@ -54,6 +54,8 @@ name = value
 ### Section [scripts]
 Defines scripts started by launcher.
 
+The `/debug` log viewer also uses this section to populate its Source dropdown, so the names here should match the process names you want to filter by in the browser.
+
 Example:
 
 ```
