@@ -98,7 +98,7 @@ def _empty_grid(cells: int) -> list[list[float]]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Publish synthetic rectangular pose data for grid.html")
-    parser.add_argument("--config", default=default_config_path(), help="Path to config/config.ini")
+    parser.add_argument("--config", default=default_config_path(), help="Path to config.ini")
     parser.add_argument("--width", type=float, default=1.0, help="Rectangle width in meters (default: 1.0)")
     parser.add_argument("--height", type=float, default=2.0, help="Rectangle height in meters (default: 2.0)")
     parser.add_argument("--step", type=float, default=0.05, help="Step size in meters along edges (default: 0.05)")

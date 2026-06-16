@@ -47,7 +47,7 @@ Please follow link to [Technical Documentation](doc/technical%20documentation.md
 ## Recent update (2026-06-15)
 
 - Added a live debug log page at `/debug` that follows the active `orover.log` file.
-- The debug page now supports filtering by source, level, and keyword, with source choices driven from the `[scripts]` section of `config/config.ini`.
+- The debug page now supports filtering by source, level, and keyword, with source choices driven from the `[scripts]` section of `config.ini`.
 - A Pause/Resume button lets you stop auto-refresh while inspecting a specific log point.
 - The debug layout was compacted so the message column has more room.
 
@@ -60,7 +60,7 @@ From the `pi/` directory:
 ./stop             # sends cmd.shutdown through the event bus
 ```
 
-Use `./start <config/config.ini>` or `./stop <config/config.ini>` to select another config file.
+Use `./start <config.ini>` or `./stop <config.ini>` to select another config file.
 
 ## 📂 Repository Structure
 - orover     main directory

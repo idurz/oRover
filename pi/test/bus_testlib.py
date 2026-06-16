@@ -45,7 +45,7 @@ def read_eventbus_config(config_path: str) -> tuple[str, str]:
 
 def default_config_path() -> str:
     """Return default runtime config path relative to pi/test."""
-    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "config", "config.ini"))
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "config.ini"))
 
 
 def enum_to_topic(reason: IntEnum) -> str:

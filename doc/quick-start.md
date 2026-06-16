@@ -13,7 +13,7 @@ Launches the oRover system via the launcher process.
 **Usage:**
 ```bash
 cd pi/
-./start              # Uses default config/config.ini
+./start              # Uses default config.ini
 ./start custom.ini   # Uses specified config file
 ```
 
@@ -29,7 +29,7 @@ Sends a graceful shutdown command to the running oRover system.
 **Usage:**
 ```bash
 cd pi/
-./stop              # Uses default config/config.ini
+./stop              # Uses default config.ini
 ./stop custom.ini   # Uses specified config file
 ```
 
@@ -64,7 +64,7 @@ cd /path/to/oRover/pi
 - Python 3.6+
 - Bash shell
 - Event bus available via config.ini `[eventbus]` parameters
-- Config file accessible (default: `config/config.ini`)
+- Config file accessible (default: `config.ini`)
 - `launcher.py`, `stop.py`, and `eventbus.py` in pi directory
 
 ## Notes
@@ -76,7 +76,7 @@ cd /path/to/oRover/pi
 - `launcher.py` handles SIGTERM gracefully by stopping child processes in reverse order
 - Logs are written to `logs/` directory with timestamps
 - Open `http://localhost:5000/debug` to inspect the live `orover.log` view in the browser.
-- The debug page can filter by source, level, and keywords, and the source dropdown is populated from the `[scripts]` section in `config/config.ini`.
+- The debug page can filter by source, level, and keywords, and the source dropdown is populated from the `[scripts]` section in `config.ini`.
 - Use the Pause button on the debug page to stop auto-refresh temporarily while inspecting a specific log point.
 - Web UI telemetry rendering is resilient to non-numeric IMU/battery payload fields; invalid values show as `--` rather than throwing client-side `toFixed` errors.
 

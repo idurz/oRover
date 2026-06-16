@@ -2,10 +2,10 @@
 # oRover Start Script
 # Starts the oRover launcher with the specified config file
 # Usage: ./start [config_file]
-# Example: ./start config/config.ini
+# Example: ./start config.ini
 #          ./start /path/to/custom.ini
 
-CONFIG_FILE="${1:-config/config.ini}"
+CONFIG_FILE="${1:-config.ini}"
 
 # Change to script directory
 cd "$(dirname "$0")" || exit 1

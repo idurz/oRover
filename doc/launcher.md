@@ -1,7 +1,7 @@
 # launcher
 
 ## Description
-The launcher is the process manager for oRover. It reads `config/config.ini`, starts all
+The launcher is the process manager for oRover. It reads `config.ini`, starts all
 configured scripts, and handles graceful shutdown of child processes when a
 termination signal is received.
 
@@ -26,7 +26,7 @@ and forwards `SIGTERM` to all started oRover processes.
 
 ## Command line parameters
 - `--config`: Optional argument to specify the path to the configuration file. 
-If not provided, it defaults to "config/config.ini" in the working directory.
+If not provided, it defaults to "config.ini" in the working directory.
 
 ## Parameters in config file
 
