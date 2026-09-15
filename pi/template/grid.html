@@ -78,6 +78,9 @@
       const cssCanvasSize = 720;
       let lastMap = null;
       let lastRobot = [0, 0, 0];
+      let lastResolution = 0.05;
+      const trail = [];
+      const MAX_TRAIL_POINTS = 10000;
 
       function resizeCanvasForDisplay() {
         const dpr = window.devicePixelRatio || 1;
@@ -213,6 +216,33 @@
         ctx.restore();
       }
 
+      function drawTrail(robot, dims) {
+        if (trail.length < 2) return;
+
+        const currentX = Number(robot?.[0] || 0);
+        const currentY = Number(robot?.[1] || 0);
+        const resolution = lastResolution;
+        const centerX = (Math.floor(dims.cols / 2) + 0.5) * dims.cellW;
+        const centerY = (Math.floor(dims.rows / 2) + 0.5) * dims.cellH;
+
+        ctx.save();
+        ctx.strokeStyle = "#d90429";
+        ctx.lineWidth = Math.max(2, Math.min(dims.cellW, dims.cellH) * 0.12);
+        ctx.lineJoin = "round";
+        ctx.lineCap = "round";
+        ctx.beginPath();
+
+        trail.forEach((point, index) => {
+          const pointX = centerX + ((point[0] - currentX) / resolution) * dims.cellW;
+          const pointY = centerY - ((point[1] - currentY) / resolution) * dims.cellH;
+          if (index === 0) ctx.moveTo(pointX, pointY);
+          else ctx.lineTo(pointX, pointY);
+        });
+
+        ctx.stroke();
+        ctx.restore();
+      }
+
       function drawFrame(width, height) {
         ctx.save();
         ctx.strokeStyle = "rgba(23, 33, 43, 0.18)";
@@ -239,6 +269,7 @@
         drawBackground(width, height);
         const dims = drawGridCells(map, width, height);
         drawCrosshair(width, height);
+        drawTrail(robot, dims);
         drawRobotMarker(robot, dims);
         drawFrame(width, height);
 
@@ -305,8 +336,17 @@
         if (Array.isArray(preview) && preview.length > 0 && Array.isArray(preview[0])) {
           lastMap = preview;
         }
+        const resolution = Number(data?.grid?.resolution_m);
+        if (Number.isFinite(resolution) && resolution > 0) {
+          lastResolution = resolution;
+        }
         if (Number.isFinite(Number(robot[0])) && Number.isFinite(Number(robot[1])) && Number.isFinite(Number(robot[2]))) {
           lastRobot = robot;
+          const lastPoint = trail[trail.length - 1];
+          if (!lastPoint || lastPoint[0] !== robot[0] || lastPoint[1] !== robot[1]) {
+            trail.push([robot[0], robot[1]]);
+            if (trail.length > MAX_TRAIL_POINTS) trail.shift();
+          }
         }
 
         setStatus("connected", "Live");

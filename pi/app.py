@@ -118,6 +118,9 @@ class handler:
         if isinstance(preview, list) and (len(preview) == 0 or isinstance(preview[0], list)):
             payload["grid"] = {"preview": preview}
             shared_state["map"] = preview
+        resolution_m = self._as_float(body.get("grid", {}).get("resolution_m"))
+        if resolution_m is not None and resolution_m > 0:
+            payload.setdefault("grid", {})["resolution_m"] = resolution_m
 
         shared_state["robot"] = [x, y, h]
 

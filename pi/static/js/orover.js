@@ -221,23 +221,27 @@ async function loadRouteFile(filename) {
   }
 }
 
-const intervals = {};   // store interval per action
-const INTERVAL_MS = 100; // faster = more responsive stop
-
 function bindButton(buttonId) {
     const btn = document.getElementById(buttonId);
     const action = btn.dataset.action;
+  let pressed = false;
 
-    // Desktop
-    btn.addEventListener("mousedown", () => sendAction('start'));
-    btn.addEventListener("mouseup",   () => sendAction('stop'));
+  const stop = () => {
+    if (!pressed) return;
+    pressed = false;
+    sendAction('stop');
+  };
 
-    // Mobile
-    btn.addEventListener("touchstart", e => {
-        e.preventDefault(); // important for mobile!
-        sendAction(action);
-    });
-    btn.addEventListener("touchend", () => sendAction('stop'));
+  btn.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    if (pressed) return;
+    pressed = true;
+    btn.setPointerCapture(event.pointerId);
+    sendAction(action);
+  });
+  btn.addEventListener("pointerup", stop);
+  btn.addEventListener("pointercancel", stop);
+  btn.addEventListener("lostpointercapture", stop);
 }
 
 // Bind all buttons
