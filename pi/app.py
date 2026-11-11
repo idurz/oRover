@@ -20,6 +20,8 @@ state = {"temperature": 22,
 shared_state = {
     "map": {},
     "robot": {},
+    "resolution": 0.05,
+    "origin_cell": None,
 }
 
 ###########################################################################
@@ -114,13 +116,19 @@ class handler:
             payload["ts"] = pose_ts
 
         # Forward optional preview grid when present so grid.html can render map cells.
-        preview = body.get("grid", {}).get("preview")
+        grid = body.get("grid", {})
+        preview = grid.get("preview") if isinstance(grid, dict) else None
         if isinstance(preview, list) and (len(preview) == 0 or isinstance(preview[0], list)):
             payload["grid"] = {"preview": preview}
             shared_state["map"] = preview
-        resolution_m = self._as_float(body.get("grid", {}).get("resolution_m"))
+        resolution_m = self._as_float(grid.get("resolution_m")) if isinstance(grid, dict) else None
         if resolution_m is not None and resolution_m > 0:
             payload.setdefault("grid", {})["resolution_m"] = resolution_m
+            shared_state["resolution"] = resolution_m
+        origin_cell = self._as_float(grid.get("origin_cell")) if isinstance(grid, dict) else None
+        if origin_cell is not None:
+            payload.setdefault("grid", {})["origin_cell"] = origin_cell
+            shared_state["origin_cell"] = origin_cell
 
         shared_state["robot"] = [x, y, h]
 
@@ -225,7 +233,7 @@ def index():
 # ---------------------------
 @app.route("/grid")
 def grid_view():
-    return render_template("grid.html")
+    return render_template("grid.html", embedded=request.args.get("embedded") == "1")
 
 
 @app.route("/debug")
@@ -250,6 +258,8 @@ def grid_data():
     return jsonify({
         "map": shared_state.get("map", {}),
         "robot": shared_state.get("robot", {}),
+        "resolution": shared_state.get("resolution", 0.05),
+        "origin_cell": shared_state.get("origin_cell"),
     })
 
 

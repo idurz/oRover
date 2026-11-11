@@ -260,6 +260,45 @@ body.grid-page {
     background: #fff;
 }
 
+.navigation-grid-section {
+    margin-top: 24px;
+}
+
+.navigation-grid-frame {
+    display: block;
+    width: 100%;
+    height: clamp(520px, calc(100vw - 48px + 145px), 900px);
+    border: 0;
+}
+
+.grid-embedded {
+    background: transparent;
+}
+
+.grid-embedded .grid-shell {
+    max-width: none;
+    padding: 0;
+}
+
+.grid-embedded .grid-header,
+.grid-embedded .grid-sidebar {
+    display: none;
+}
+
+.grid-embedded .grid-layout {
+    display: block;
+}
+
+.grid-embedded .grid-container {
+    padding: 12px;
+    box-shadow: none;
+}
+
+.grid-embedded #gridCanvas {
+    max-width: 720px;
+    margin: 0 auto;
+}
+
 .grid-meta {
     margin-top: 12px;
     text-align: left;

@@ -19,14 +19,22 @@ The goal of this project is to explore **autonomous navigation**, **computer vis
 
 ## Prerequisites
 
+Our development engine is a PI Zero 2W. It needs to be a 64 bit engine, but another Pi will work as well probably. Assuming you have enough knowledge to install the PI, work with Github and get the code from there, the installation is simple. Oh uhh, this installation is tested on Debian Trixie.
+
 Install the following libraries before attempting to start oRover:
 
 ```
-sudo apt install python3-serial
 sudo apt install python3-zmq
 sudo apt install python3-setproctitle
 sudo apt install python3-flask
 ```
+
+Next, clone the repo
+
+```
+git clone https://github.com/idurz/oRover.git
+```
+
 
 ## Detailed documentation
 

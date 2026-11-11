@@ -211,6 +211,7 @@ def _build_snapshot_payload():
         "grid": {
             "resolution_m": grid["resolution_m"],
             "preview": _grid_preview(grid["cells"], max_size=grid["preview_size"]),
+            "origin_cell": grid["origin_cell"] - max(0, (grid["size"] - grid["preview_size"]) // 2),
         },
         "ts": p.nav_state.get("last_update_ts"),
     }

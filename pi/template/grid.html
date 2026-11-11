@@ -9,7 +9,7 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
   </head>
 
-  <body class="grid-page">
+  <body class="grid-page{% if embedded %} grid-embedded{% endif %}">
     <div class="grid-shell">
       <div class="grid-header">
         <div>
@@ -79,6 +79,7 @@
       let lastMap = null;
       let lastRobot = [0, 0, 0];
       let lastResolution = 0.05;
+      let lastOriginCell = null;
       const trail = [];
       const MAX_TRAIL_POINTS = 10000;
 
@@ -154,27 +155,29 @@
         return { rows, cols, cellW, cellH };
       }
 
-      function drawCrosshair(width, height) {
+      function drawCrosshair(dims, originCell) {
+        const centerX = (originCell + 0.5) * dims.cellW;
+        const centerY = (originCell + 0.5) * dims.cellH;
         ctx.save();
         ctx.strokeStyle = "rgba(33, 53, 71, 0.35)";
         ctx.setLineDash([8, 6]);
         ctx.lineWidth = 2;
         ctx.beginPath();
-        ctx.moveTo(width / 2, 0);
-        ctx.lineTo(width / 2, height);
+        ctx.moveTo(centerX, 0);
+        ctx.lineTo(centerX, dims.cellH * dims.rows);
         ctx.stroke();
         ctx.beginPath();
-        ctx.moveTo(0, height / 2);
-        ctx.lineTo(width, height / 2);
+        ctx.moveTo(0, centerY);
+        ctx.lineTo(dims.cellW * dims.cols, centerY);
         ctx.stroke();
         ctx.restore();
       }
 
-      function drawRobotMarker(robot, dims) {
+      function drawRobotMarker(robot, dims, originCell) {
         const headingDeg = Number(robot?.[2] || 0);
         const headingRad = (headingDeg - 90) * Math.PI / 180;
-        const centerX = (Math.floor(dims.cols / 2) + 0.5) * dims.cellW;
-        const centerY = (Math.floor(dims.rows / 2) + 0.5) * dims.cellH;
+        const centerX = (originCell + Number(robot?.[0] || 0) / lastResolution + 0.5) * dims.cellW;
+        const centerY = (originCell + Number(robot?.[1] || 0) / lastResolution + 0.5) * dims.cellH;
         const radius = Math.max(8, Math.min(dims.cellW, dims.cellH) * 0.42);
 
         ctx.save();
@@ -216,14 +219,8 @@
         ctx.restore();
       }
 
-      function drawTrail(robot, dims) {
+      function drawTrail(dims, originCell) {
         if (trail.length < 2) return;
-
-        const currentX = Number(robot?.[0] || 0);
-        const currentY = Number(robot?.[1] || 0);
-        const resolution = lastResolution;
-        const centerX = (Math.floor(dims.cols / 2) + 0.5) * dims.cellW;
-        const centerY = (Math.floor(dims.rows / 2) + 0.5) * dims.cellH;
 
         ctx.save();
         ctx.strokeStyle = "#d90429";
@@ -233,8 +230,8 @@
         ctx.beginPath();
 
         trail.forEach((point, index) => {
-          const pointX = centerX + ((point[0] - currentX) / resolution) * dims.cellW;
-          const pointY = centerY - ((point[1] - currentY) / resolution) * dims.cellH;
+          const pointX = (originCell + point[0] / lastResolution + 0.5) * dims.cellW;
+          const pointY = (originCell + point[1] / lastResolution + 0.5) * dims.cellH;
           if (index === 0) ctx.moveTo(pointX, pointY);
           else ctx.lineTo(pointX, pointY);
         });
@@ -251,7 +248,7 @@
         ctx.restore();
       }
 
-      function renderGrid(map, robot) {
+      function renderGrid(map, robot, originCell = lastOriginCell) {
         const x = Number(robot?.[0] || 0).toFixed(2);
         const y = Number(robot?.[1] || 0).toFixed(2);
         const h = Number(robot?.[2] || 0).toFixed(2);
@@ -262,15 +259,19 @@
           return;
         }
 
+        const mapOrigin = originCell !== null && originCell !== undefined && Number.isFinite(Number(originCell))
+          ? Number(originCell)
+          : (map.length - 1) / 2;
+
         resizeCanvasForDisplay();
         const width = canvas.width;
         const height = canvas.height;
 
         drawBackground(width, height);
         const dims = drawGridCells(map, width, height);
-        drawCrosshair(width, height);
-        drawTrail(robot, dims);
-        drawRobotMarker(robot, dims);
+        drawCrosshair(dims, mapOrigin);
+        drawTrail(dims, mapOrigin);
+        drawRobotMarker(robot, dims, mapOrigin);
         drawFrame(width, height);
 
         document.getElementById("gridInfo").textContent = `${dims.rows} x ${dims.cols} cells`;
@@ -281,7 +282,18 @@
           const response = await fetch('/grid-data');
           if (!response.ok) return;
           const data = await response.json();
-          renderGrid(data.map, data.robot);
+          if (Array.isArray(data.map) && data.map.length > 0 && Array.isArray(data.map[0])) {
+            lastMap = data.map;
+          }
+          if (Array.isArray(data.robot) && data.robot.length >= 3) {
+            lastRobot = data.robot;
+          }
+          const resolution = Number(data.resolution);
+          if (Number.isFinite(resolution) && resolution > 0) lastResolution = resolution;
+          if (data.origin_cell !== null && Number.isFinite(Number(data.origin_cell))) {
+            lastOriginCell = Number(data.origin_cell);
+          }
+          renderGrid(lastMap, lastRobot, lastOriginCell);
         } catch (e) {
           console.error("grid-data fetch failed", e);
         }
@@ -315,6 +327,7 @@
       socket.on("connect", () => {
         setStatus("connected", "Connected — waiting for pose data");
         if (!lastMap) drawWaiting();
+        fetchGridData();
       });
 
       socket.on("disconnect", (reason) => {
@@ -340,6 +353,8 @@
         if (Number.isFinite(resolution) && resolution > 0) {
           lastResolution = resolution;
         }
+        const originCell = Number(data?.grid?.origin_cell);
+        if (Number.isFinite(originCell)) lastOriginCell = originCell;
         if (Number.isFinite(Number(robot[0])) && Number.isFinite(Number(robot[1])) && Number.isFinite(Number(robot[2]))) {
           lastRobot = robot;
           const lastPoint = trail[trail.length - 1];
@@ -351,11 +366,11 @@
 
         setStatus("connected", "Live");
         console.log("Received pose update:", "x:", poseObj?.x, "y:", poseObj?.y, "h:", poseObj?.h);
-        renderGrid(lastMap, lastRobot);
+        renderGrid(lastMap, lastRobot, lastOriginCell);
       });
 
       window.addEventListener("resize", () => {
-        if (lastMap) renderGrid(lastMap, lastRobot);
+        if (lastMap) renderGrid(lastMap, lastRobot, lastOriginCell);
         else drawWaiting();
       });
     </script>

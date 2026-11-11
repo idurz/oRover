@@ -4,7 +4,7 @@
 */
 
 const HB_STALE_MS    = HB_INTERVAL_MS * 1.2;
-
+console.log("oRover JavaScript library loaded");
 // Socket.IO client setup
 const socket = io()
 

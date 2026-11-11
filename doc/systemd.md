@@ -4,7 +4,7 @@ While writing the oRover system, we realized that we want an easy way to start o
   * Create the following file: 
 
 ```
-sudo /etc/systemd/system/orover.service
+sudo nano /etc/systemd/system/orover.service
 ```
 
   * In below code part Change the <USERID> and </path/to/orover> to your needs   
@@ -28,13 +28,19 @@ ExecStart=/usr/bin/python3 </path/to/orover>/launcher.py
 WantedBy=multi-user.target
 ```
 
-That’s it. We can now start the service:
+That’s it. Reload the services:
 
 ```
-systemctl start orover
+sudo systemctl daemon-reload
+```
+
+We can now start the service:
+
+```
+sudo systemctl start orover
 ```
 And automatically get it to start on boot:
 
 ```
-systemctl enable orover
+sudo systemctl enable orover
 ```
