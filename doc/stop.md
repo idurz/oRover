@@ -34,13 +34,13 @@ shutdown command and stop child processes gracefully.
 From the `pi` directory:
 
 ```bash
-python3 stop.py --config=config.ini
+.venv/bin/python stop.py
 ```
 
 Alternatively, use the convenient `stop` shell script:
 
 ```bash
-./stop config.ini
+PATH="$PWD/.venv/bin:$PATH" ./stop
 ```
 
 See [quick-start.md](quick-start.md) for more details on the shell script wrappers.

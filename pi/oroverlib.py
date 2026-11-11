@@ -12,13 +12,15 @@ from enum import IntEnum, unique
 import os
 import sys
 
+DEFAULT_CONFIG_PATH = "/etc/orover/config.ini"
+
 # Read configuration from the runtime config file.
 def readConfig(name_requested=False):
 
     # Check if config file is given as argument, otherwise use default
     parser = argparse.ArgumentParser(description=f"Object Recognition and Versatile Exploration Robot")
-    parser.add_argument("--config", default="../config.ini"
-                       ,help="Path to configuration file (default: ../config.ini)")  
+    parser.add_argument("--config", default=DEFAULT_CONFIG_PATH
+                       ,help=f"Path to configuration file (default: {DEFAULT_CONFIG_PATH})")
     args = parser.parse_args()
 
     # Expand ~ to the user's home directory

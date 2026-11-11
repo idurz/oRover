@@ -2,7 +2,7 @@
 
 ## Background
 `launcher.py` starts oRover components based on a shared INI configuration file.
-By default this file is `config.ini` in the working directory.
+By default this file is `/etc/orover/config.ini`. The installer preserves an existing system configuration, or copies the old `pi/config.ini` if present; otherwise it uses the example. New files are owned by root and readable by the installing user's primary group (mode `0640`). Edit them with `sudo`.
 
 You can override the file path with:
 
@@ -81,7 +81,7 @@ See [eventbus.md](eventbus.md).
 ### Section [serial]
 | name | default | description |
 |---|---|---|
-| port | /dev/serial0 | Serial device used by `ugv.py` |
+| port | /dev/ttyUSB0 | Serial device used by `ugv.py`; the supplied example sets `/dev/serial0` |
 | baudrate | 115200 | Serial speed |
 | timeout  | 0.1    | Serial read timeout in seconds |
 

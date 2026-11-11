@@ -17,6 +17,13 @@ makes troubleshooting easier.
 
 ## Recent updates
 
+### 2026-11-11: Installation, serial access and navigation
+
+- The installer sets up an isolated Python environment and a systemd service, with runtime configuration in `/etc/orover/config.ini`.
+- Serial access setup adds the service user to `dialout` when available and configures the Raspberry Pi UART for `/dev/serial0` when `raspi-config` is available. See [systemd.md](systemd.md) for console and reboot implications.
+- UGV serial failures are reported to the application log and systemd journal before the UGV process exits. See [ugv.md](ugv.md) for troubleshooting.
+- The web interface includes an embedded navigation grid with resolution and origin metadata.
+
 ### 2026-06-04: Web telemetry rendering hardening
 
 - Browser telemetry rendering now safely normalizes IMU (`heading`, `pitch`, `roll`) and battery (`voltage`) values before numeric formatting.

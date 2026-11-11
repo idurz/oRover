@@ -42,6 +42,8 @@ body.pose.x_m
 body.pose.y_m
 body.pose.heading_deg
 body.grid.preview   (optional 2-D list)
+body.grid.resolution_m (optional positive resolution)
+body.grid.origin_cell (optional grid origin)
 body.ts             (optional timestamp)
 ```
 For backward compatibility, flat top-level `body.x_m / body.y_m / body.heading_deg` is also accepted.
@@ -49,16 +51,16 @@ All three coordinate fields must be numeric; malformed payloads are discarded wi
 
 The Socket.IO `pose` event emitted to browsers:
 ```json
-{ "x": 0.0, "y": 0.0, "h": 0.0, "ts": "...", "grid": { "preview": [[...]] } }
+{ "x": 0.0, "y": 0.0, "h": 0.0, "ts": "...", "grid": { "preview": [[...]], "resolution_m": 0.05, "origin_cell": 10 } }
 ```
-The `grid` field is only present when a valid 2-D preview list was received.
+The `grid` field contains whichever valid preview and metadata fields were received. The main page embeds the live grid, which is also available separately at `/grid`.
 
 ## Emitting states to browser
 Each handler emits a Socket.IO event directly when a bus message arrives.
 There is no periodic batch-emit thread; updates reach the browser as events occur.
 
 Web UI note (2026-06-04):
-- The browser-side Socket.IO handlers in `pi/template/index.html` now normalize IMU and battery values before numeric formatting.
+- The browser-side Socket.IO handlers in `pi/static/js/orover.js` normalize IMU and battery values before numeric formatting.
 - This prevents failures like `TypeError: data.roll.toFixed is not a function` when incoming payload values are strings, null, or missing.
 - Invalid values display as `--` instead of interrupting real-time UI updates.
 
@@ -70,18 +72,22 @@ Typical control flow:
 4. Other components (for example `ugv.py`) consume and execute
 
 Route flow:
-1. Browser sends POST `/route` with a JSON list in `route`
-2. `app.py` stores that route in `commands.csv`
-3. `app.py` reads `commands.csv`, builds a payload `{id, route:[{distance, angle}, ...]}`
+1. Browser sends POST `/route` with a filename and a JSON list in `route`
+2. `app.py` stores that route as a CSV file in `routes/`
+3. POST `/readroute` loads the selected CSV and builds a payload `{id, route:[{distance, angle}, ...]}`
 4. `app.py` publishes `orover.cmd.moveRoute` with that payload in `body`
 
 ## HTTP routes currently exposed
 - `GET /` renders the main UI
+- `GET /grid` renders the navigation grid; `?embedded=1` omits the standalone page chrome
+- `GET /grid-data` returns the latest map, robot pose, resolution and origin
+- `GET /debug` renders the log viewer; `GET /debug-log` returns the log tail
 - `POST /publish` publishes a generic bus message
 - `GET /messages` returns recent in-memory messages
 - `POST /control` sends wheel speed commands
-- `POST /readroute` loads `commands.csv` and sends one `cmd.moveRoute` command
-- `POST /route` validates route JSON, stores it to `commands.csv`, then triggers `cmd.moveRoute`
+- `GET /route-files` lists route CSV files
+- `POST /readroute` loads a selected route file and sends one `cmd.moveRoute` command
+- `POST /route` saves a named route as CSV without starting it
 
 ## Config sections used
 - `[app]` for Flask host/port/template/static settings

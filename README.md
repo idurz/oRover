@@ -19,21 +19,20 @@ The goal of this project is to explore **autonomous navigation**, **computer vis
 
 ## Prerequisites
 
-Our development engine is a PI Zero 2W. It needs to be a 64 bit engine, but another Pi will work as well probably. Assuming you have enough knowledge to install the PI, work with Github and get the code from there, the installation is simple. Oh uhh, this installation is tested on Debian Trixie.
+Our development engine is a 64-bit Pi Zero 2W running Debian Trixie. A Debian-based Raspberry Pi system with systemd, internet access and sudo is required.
 
-Install the following libraries before attempting to start oRover:
+Download and run the installer as the user that will run the robot:
 
-```
-sudo apt install python3-zmq
-sudo apt install python3-setproctitle
-sudo apt install python3-flask
+```bash
+curl -fsSLo install.sh https://raw.githubusercontent.com/idurz/oRover/main/install.sh
+bash install.sh
 ```
 
-Next, clone the repo
+The installer clones into `~/oRover`, installs the Python dependencies, and enables the systemd service for future boots. Pass a directory as an argument to choose another location. It creates `/etc/orover/config.ini`, migrating an existing `pi/config.ini` when present. Running it again fast-forwards the existing checkout and preserves the system configuration; it stops if Git cannot update safely.
 
-```
-git clone https://github.com/idurz/oRover.git
-```
+Review `/etc/orover/config.ini` and hardware access before starting the service with `sudo systemctl start orover`. The service runs as the installing user, who needs access to the configuration, serial device and GPIO. See [systemd setup](doc/systemd.md) for details.
+
+For `/dev/serial0`, the installer disables serial login and enables the Raspberry Pi UART when `raspi-config` is available. This may require a reboot and removes serial-console login access.
 
 
 ## Detailed documentation
@@ -59,13 +58,22 @@ Please follow link to [Technical Documentation](doc/technical%20documentation.md
 - A Pause/Resume button lets you stop auto-refresh while inspecting a specific log point.
 - The debug layout was compacted so the message column has more room.
 
+## Recent update (2026-11-11)
+
+- Added an embedded live navigation grid with resolution and origin information.
+- Added an installer for Git updates, Python dependencies, and systemd service setup.
+- Standardized runtime configuration at `/etc/orover/config.ini`, preserving existing settings during installation.
+- Added serial access setup for `dialout` and Raspberry Pi UART configuration when using `/dev/serial0`.
+- UGV serial errors are reported to the application log and systemd journal before the process exits.
+- Updated launcher shutdown reporting and added installer and serial-error tests.
+
 ## Start and stop
 
 From the `pi/` directory:
 
 ```bash
-./start            # starts launcher.py in the background
-./stop             # sends cmd.shutdown through the event bus
+PATH="$PWD/.venv/bin:$PATH" ./start  # starts launcher.py in the background
+PATH="$PWD/.venv/bin:$PATH" ./stop   # sends cmd.shutdown through the event bus
 ```
 
 Use `./start <config.ini>` or `./stop <config.ini>` to select another config file.

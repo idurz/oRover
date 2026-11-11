@@ -26,7 +26,7 @@ and forwards `SIGTERM` to all started oRover processes.
 
 ## Command line parameters
 - `--config`: Optional argument to specify the path to the configuration file. 
-If not provided, it defaults to "config.ini" in the working directory.
+If not provided, it defaults to `/etc/orover/config.ini`.
 
 ## Parameters in config file
 

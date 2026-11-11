@@ -19,7 +19,8 @@ The process is a `baseprocess` client with a custom main loop:
 - `cmd.getParam` via `cmd_getParam(message)`
 - `cmd.setParam` via `cmd_setParam(message)`
 - `cmd.set_motor_speed` via `cmd_set_motor_speed(message)`
-- `event.obstacleDetected` via `event_obstacleDetected(message)`
+- `cmd.stop` via `cmd_stop(message)`
+- `event.object_detected` via `event_object_detected(message)`
 
 ### Outgoing (published in `ugv.py`)
 - `state.battery` from typed serial feedback `T=1001`
@@ -33,8 +34,8 @@ The process is a `baseprocess` client with a custom main loop:
 - `event.heartbeat` is published periodically by `_heartbeat_loop` when
     `heartbeat_interval > 0` in config.
 
-`ugv.py` uses its own handler class, so base handler commands (`cmd.stop`,
-`cmd.pause`, `cmd.resume`) are not auto-registered here.
+`ugv.py` uses its own handler class, including its own `cmd.stop` handler;
+the base `cmd.pause` and `cmd.resume` handlers are not auto-registered here.
 
 ## Command handlers currently implemented
 The handler class currently exposes these command entry points:
@@ -44,7 +45,8 @@ The handler class currently exposes these command entry points:
 - `cmd_getParam(message)`
 - `cmd_setParam(message)`
 - `cmd_set_motor_speed(message)`
-- `event_obstacleDetected(message)`
+- `cmd_stop(message)`
+- `event_object_detected(message)`
 
 The most used command path is motor control:
 - incoming bus command `cmd.set_motor_speed`
@@ -56,7 +58,12 @@ Route/motion behavior:
 - `cmd_moveTo` creates a one-step route with `distance` and `angle`
 - `cmd_moveRoute` validates and executes `body.route` sequentially
 - route execution runs in a worker thread (`move_rover_thread`) and processes each segment through `_move_segment`
-- `cmd_set_motor_speed` updates default linear/angular speeds used for later movement helpers
+- `cmd_set_motor_speed` writes the requested wheel speeds directly to serial
+
+## Serial failures
+The serial device is configured in `[serial]` in `/etc/orover/config.ini` by default. If opening or using it raises a serial or OS error, UGV logs the error, writes a message to stderr, closes an open port, and exits with status 1. Under systemd, inspect the message with `journalctl -u orover -b`.
+
+For `Permission denied`, check the configured device and its permissions with `ls -lL /dev/serial0` (or the configured path). Membership in `dialout` is not sufficient if the device is owned by `root:tty` with mode `600`. The installer can disable serial login and enable UART through `raspi-config` for `/dev/serial0`; see [systemd.md](systemd.md) for reboot and access details. The launcher is the service's main process, so UGV exiting does not by itself mark the whole service as failed.
 
 ## Serial receive format
 ESP32 serial output is handled as newline-delimited frames.

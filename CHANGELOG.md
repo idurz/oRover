@@ -2,6 +2,19 @@
 
 All notable changes to this project are documented in this file.
 
+## Update 2026-11-11
+
+### Installation and configuration
+- Added `install.sh` to clone or fast-forward the repository, install Python dependencies in an isolated virtual environment, and configure the systemd service.
+- Standardized runtime configuration at `/etc/orover/config.ini`; existing system settings are preserved and an older `pi/config.ini` is copied when needed.
+- Added serial access setup using the `dialout` group and, for `/dev/serial0` when available, `raspi-config` to disable serial login and enable UART. A reboot may be needed and serial-console login is disabled.
+- Fixed the generated systemd working directory and added mocked installer coverage.
+
+### UGV and navigation
+- Report UGV serial failures to the application log and systemd journal before exiting with an error status.
+- Added an embedded live navigation grid with resolution and origin metadata.
+- Updated launcher shutdown reporting and added serial-error tests.
+
 ## Update 2026-06-15
 
 ### Debug log viewer added

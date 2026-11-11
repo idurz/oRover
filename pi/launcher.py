@@ -20,11 +20,12 @@ STOP_WAIT_SECONDS = 1.0
 
 class handler:
     def cmd_shutdown(self,message):
-        print(f"Shutdown message {message}")
-        reason = message.get('body', {}).get('value', 'unknown')
+        body = message.get('body', {})
+        reason = body.get('reason', 'unknown')
         print(f"LAUNCHER: Shutdown requested, reason: {reason}")
         stop_all()
         shutdown_launcher()
+        print(f"LAUNCHER: Shutdown request completed (reason: {reason})")
         sys.exit(0)
 
 

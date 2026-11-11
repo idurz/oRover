@@ -11,6 +11,7 @@ import serial
 import time
 import zmq
 import json
+import sys
 import threading
 
 
@@ -202,6 +203,7 @@ class ugv:
         self.ugv_updates_interval = b.config.getint("ugv", "ugv_updates_interval", fallback=1) 
         self.ugv_updates_enabled = b.config.getboolean("ugv", "ugv_updates_enabled", fallback=False)    
         self._serial_rx_buffer = ""
+        self.serial_port = None
         self.voltage = 12.0 # Dummy voltage value until we receive real data from the UGV firmware, to prevent None values in the UI and logs before the first battery message is received.
 
         # Stores the current route to follow for moveTo commands, which can be used to implement obstacle avoidance or dynamic path replanning in the future.
@@ -536,12 +538,16 @@ if __name__ == "__main__":
     h = handler() # Instantiate the handler class, which contains the message handlers for the BOSS server
     b = base(handler=h,threadingsubsocket=False) # Instantiate the base class, which contains the main loop and message handling logic for the BOSS server
     ugv = ugv() # Instantiate the UGV class, which contains the logic for handling serial data and sending motor commands
-    ugv.open_serial() # Open the serial port for communication with the UGV, using the configuration parameters from the config file
-
-    b.poller = zmq.Poller()
-    b.poller.register(b.sub, zmq.POLLIN)
-
     try:
+        ugv.open_serial() # Open the serial port for communication with the UGV, using the configuration parameters from the config file
+        b.poller = zmq.Poller()
+        b.poller.register(b.sub, zmq.POLLIN)
         b.run()
+    except (serial.SerialException, OSError) as exc:
+        message = f"UGV serial communication failed: {exc}"
+        b.logger.error(message)
+        print(message, file=sys.stderr, flush=True)
+        sys.exit(1)
     finally:
+        b.running = False
         ugv.close_serial()

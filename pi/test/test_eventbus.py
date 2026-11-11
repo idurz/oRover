@@ -22,6 +22,8 @@ except ModuleNotFoundError as exc:
     print("FAIL: missing dependency 'pyzmq'. Install with: pip install pyzmq")
     raise SystemExit(1) from exc
 
+from bus_testlib import default_config_path
+
 
 def read_eventbus_config(config_path: str) -> tuple[str, str]:
     """Read client bus endpoints from config.ini."""
@@ -93,8 +95,8 @@ def main() -> int:
     )
     parser.add_argument(
         "--config",
-        default=os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "config.ini"),
-        help="Path to config.ini (default: pi/config.ini)",
+        default=default_config_path(),
+        help=f"Path to config.ini (default: {default_config_path()})",
     )
     parser.add_argument(
         "--use-existing-bus",

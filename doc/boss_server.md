@@ -79,6 +79,8 @@ body.speed.left_mps    float — left wheel speed
 body.speed.right_mps   float — right wheel speed
 body.obstacle_count    int
 body.grid.preview      2-D list of occupancy values
+body.grid.resolution_m grid resolution in metres
+body.grid.origin_cell  origin index within the preview
 body.ts                ISO timestamp of last motion update
 ```
 

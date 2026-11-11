@@ -9,7 +9,8 @@ Launches the oRover system via the launcher process.
 
 **Usage:**
 ```bash
-./start              # Uses default config.ini
+export PATH="$PWD/.venv/bin:$PATH"  # Run from pi/ after installation
+./start              # Uses /etc/orover/config.ini
 ./start custom.ini   # Uses specified config file
 ```
 
@@ -24,7 +25,8 @@ Sends a graceful shutdown command to the running oRover system.
 
 **Usage:**
 ```bash
-./stop              # Uses default config.ini
+export PATH="$PWD/.venv/bin:$PATH"  # Run from pi/ after installation
+./stop              # Uses /etc/orover/config.ini
 ./stop custom.ini   # Uses specified config file
 ```
 
@@ -38,9 +40,10 @@ Sends a graceful shutdown command to the running oRover system.
 
 ```bash
 cd /path/to/oRover/pi
+export PATH="$PWD/.venv/bin:$PATH"
 
 # Start the system in the background
-./start &
+./start
 
 # Let it run...
 # When ready to stop:
@@ -52,16 +55,16 @@ cd /path/to/oRover/pi
 
 ## Requirements
 
-- Python 3.6+
+- Python 3 and the project dependencies (installed in `pi/.venv` by the installer)
 - Event bus running (started by launcher)
 - Launcher and stop.py processes in the pi directory
-- Config file accessible (default: `config.ini`)
+- Config file accessible (default: `/etc/orover/config.ini`)
 
 ## Notes
 
 - Both scripts are executable (chmod +x already set)
 - They validate that config files exist before attempting to launch
-- They use relative paths, so can be run from any directory
+- They change to the script directory; relative configuration paths are resolved there
 - `stop.py` requires a running event bus to send shutdown command
 - `launcher.py` handles the shutdown gracefully by stopping child processes
 - Web UI telemetry rendering now tolerates non-numeric IMU/battery payload fields; invalid values display as `--` instead of causing browser `toFixed` runtime errors.

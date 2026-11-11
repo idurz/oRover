@@ -13,7 +13,8 @@ Launches the oRover system via the launcher process.
 **Usage:**
 ```bash
 cd pi/
-./start              # Uses default config.ini
+export PATH="$PWD/.venv/bin:$PATH"  # Use the installer's Python environment
+./start              # Uses /etc/orover/config.ini
 ./start custom.ini   # Uses specified config file
 ```
 
@@ -29,7 +30,8 @@ Sends a graceful shutdown command to the running oRover system.
 **Usage:**
 ```bash
 cd pi/
-./stop              # Uses default config.ini
+export PATH="$PWD/.venv/bin:$PATH"
+./stop              # Uses /etc/orover/config.ini
 ./stop custom.ini   # Uses specified config file
 ```
 
@@ -43,6 +45,7 @@ cd pi/
 
 ```bash
 cd /path/to/oRover/pi
+export PATH="$PWD/.venv/bin:$PATH"
 
 # Start the system (script already backgrounds launcher)
 ./start
@@ -61,17 +64,17 @@ cd /path/to/oRover/pi
 
 ## Requirements
 
-- Python 3.6+
+- Python 3 and the project dependencies (installed in `pi/.venv` by the installer)
 - Bash shell
 - Event bus available via config.ini `[eventbus]` parameters
-- Config file accessible (default: `config.ini`)
+- Config file accessible (default: `/etc/orover/config.ini`)
 - `launcher.py`, `stop.py`, and `eventbus.py` in pi directory
 
 ## Notes
 
 - Both scripts are executable (chmod +x set)
 - They validate that config files exist before attempting to launch
-- They use relative paths and cd to script directory, so can be run from any directory
+- They change to the script directory; relative configuration paths are resolved there
 - `stop.py` requires a running event bus to send shutdown command
 - `launcher.py` handles SIGTERM gracefully by stopping child processes in reverse order
 - Logs are written to `logs/` directory with timestamps

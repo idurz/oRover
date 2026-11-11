@@ -3,3 +3,4 @@ config.ini
 .log
 pi/config.ini
 pi/config/*.local.ini
+pi/.venv/

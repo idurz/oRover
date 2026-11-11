@@ -5,7 +5,7 @@
 # Example: ./start config.ini
 #          ./start /path/to/custom.ini
 
-CONFIG_FILE="${1:-config.ini}"
+CONFIG_FILE="${1:-/etc/orover/config.ini}"
 
 # Change to script directory
 cd "$(dirname "$0")" || exit 1
