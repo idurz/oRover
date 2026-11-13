@@ -10,6 +10,7 @@ import csv
 import os
 import sys
 from base_process import baseprocess, handler
+from navigation_grid import decode_grid
 
 
 state = {"temperature": 22,
@@ -134,6 +135,27 @@ class handler:
 
         p.logger.info(f"Pose update - x={x:.3f}, y={y:.3f}, h={h:.2f}")
         socketio.emit("pose", payload)
+        return True
+
+
+    def state_navigation_grid(self, msg):
+        body = msg.get("body", {})
+        try:
+            grid, resolution, origin_cell = decode_grid(body)
+        except (TypeError, ValueError) as exc:
+            p.logger.warning("Discarding navigation grid update: %s", exc)
+            return False
+
+        shared_state["map"] = grid
+        shared_state["resolution"] = resolution
+        shared_state["origin_cell"] = origin_cell
+        p.logger.debug(
+            "Navigation grid update: %dx%d cells, %d occupied",
+            body["height"],
+            body["width"],
+            len(body["cells"]),
+        )
+        socketio.emit("grid", body)
         return True
     
     

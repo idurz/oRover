@@ -6,6 +6,8 @@
 """
 
 import datetime
+import base64
+import binascii
 import socket
 import json
 import os
@@ -22,6 +24,10 @@ import setproctitle
 
 _log_guid = contextvars.ContextVar("log_guid", default="-")
 _log_record_factory_installed = False
+
+
+def new_message_id():
+    return base64.urlsafe_b64encode(uuid.uuid4().bytes).rstrip(b"=").decode("ascii")
 
 
 def _install_guid_log_record_factory():
@@ -160,11 +166,14 @@ class baseprocess:
         rootLogger.addHandler(socketHandler)
         logger = logging.getLogger(myname)
 
-        loglevel = config.get('orover','loglevel',fallback="UNKNOWN").upper()
+        loglevel = config.get('orover','loglevel',fallback="UNKNOWN")
+        if config.has_section('logging'):
+            loglevel = config.get('logging', myname, fallback=loglevel)
+        loglevel = loglevel.upper()
         known_level = (loglevel in ["DEBUG","INFO","WARNING","ERROR","CRITICAL"])
         if not known_level:
             logger.setLevel("ERROR")
-            logger.error((f"Invalid log level {loglevel} in config, defaulting to 'ERROR'"))
+            logger.error((f"Invalid log level {loglevel} for {myname}, defaulting to 'ERROR'"))
         else:
             logger.setLevel(loglevel.upper())
     
@@ -246,7 +255,7 @@ class baseprocess:
 
     def send_event(self, src, reason,body={}, prio=None):
         # Publish an event to the bus, with validation of fields and JSON body
-        msg_id = str(uuid.uuid4())
+        msg_id = new_message_id()
         token = self.set_log_guid(msg_id)
 
         try:
@@ -282,7 +291,7 @@ class baseprocess:
 
             # Construct the message to send to the boss
             msg = {"id"  : msg_id
-                  ,"ts"  : datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S.%f')
+                  ,"ts"  : time.time_ns() // 1_000_000
                   ,"src" : src
                   ,"me"  : self.myname
                   ,"host": os.uname().nodename
@@ -316,7 +325,7 @@ class baseprocess:
     
     def all_fields_present(self, message):
         # test method to validate if all fields are present in the message
-        """ "id"    : UUID
+        """ "id"    : compact base64url UUID (legacy UUIDv4 also accepted)
            ,"ts"    : datetime of message in '%Y-%m-%dT%H:%M:%S.%f' format
            ,"src"   : message source, e.g. specific sensor or actuator, should be in class origin
            ,"me"    : sending script name
@@ -336,19 +345,34 @@ class baseprocess:
 
     
     def valid_uuid(self, id):
-        # test method to validate uuid
-        try:
-            uuid_object = uuid.UUID(id, version=4).hex
-        except ValueError:
+        # Accept compact UUIDs and legacy canonical UUIDv4 messages.
+        if not isinstance(id, str):
             return False
-        return True
+        if len(id) == 22:
+            try:
+                decoded = base64.b64decode(id.encode("ascii") + b"==", altchars=b"-_", validate=True)
+            except (binascii.Error, UnicodeEncodeError):
+                return False
+            return (
+                len(decoded) == 16
+                and uuid.UUID(bytes=decoded).version == 4
+                and base64.urlsafe_b64encode(decoded).rstrip(b"=").decode("ascii") == id
+            )
+        try:
+            return uuid.UUID(id).version == 4
+        except (ValueError, TypeError, AttributeError):
+            return False
 
 
     def valid_datetime(self, ts):
-        # test method to validate datetime
+        # Accept compact epoch milliseconds and legacy ISO timestamps.
+        if type(ts) is int:
+            return ts > 0
+        if not isinstance(ts, str):
+            return False
         try:
             date_object = datetime.datetime.strptime(ts,'%Y-%m-%dT%H:%M:%S.%f')
-        except ValueError:
+        except (TypeError, ValueError):
             return False
         return True
 
@@ -374,10 +398,10 @@ class baseprocess:
             self.logger.error(f"Discarding message {msg} --> Field missing in message")
             return False
         if not self.valid_uuid(msg['id']):
-            self.logger.error(f"Discarding message {msg} --> {msg['id']}<< is not a valid UUID version 4")
+            self.logger.error(f"Discarding message {msg} --> {msg['id']}<< is not a valid compact or legacy UUID")
             return False
         if not self.valid_datetime(msg['ts']):
-            self.logger.error(f"Discarding message >>{msg['ts']}<< is not a valid datetime in format '%Y-%m-%dT%H:%M:%S.%f'")
+            self.logger.error(f"Discarding message >>{msg['ts']}<< is not epoch milliseconds or a legacy ISO timestamp")
             return False
         if not self.valid_source(msg):
             self.logger.error(f"Discarding message >>{msg['src']}<< is not a valid origin")
@@ -390,6 +414,11 @@ class baseprocess:
 
     def handle_message(self, topicmsg):
         # retrieve the topic and message from the received zmq message, and validate the message structure and content
+        is_navigation_grid = isinstance(topicmsg, str) and topicmsg.startswith("state.navigation_grid ")
+        if is_navigation_grid:
+            self.logger.debug("Message received : state.navigation_grid (sparse payload omitted)")
+        else:
+            self.logger.debug(f"Message received : {topicmsg}")
         topic , msg = self.demogrify(topicmsg)
         token = self.set_log_guid(msg.get("id") if isinstance(msg, dict) else "-")
 
@@ -414,7 +443,10 @@ class baseprocess:
                 return None
             
             handler_routine(msg)
-            self.logger.debug(f"Message handled : {msg}")
+            if is_navigation_grid:
+                self.logger.debug("Message handled : state.navigation_grid")
+            else:
+                self.logger.debug(f"Message handled : {msg}")
             return
         finally:
             self.reset_log_guid(token)

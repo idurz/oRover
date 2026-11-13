@@ -369,6 +369,28 @@
         renderGrid(lastMap, lastRobot, lastOriginCell);
       });
 
+      socket.on("grid", (data) => {
+        const width = Number(data?.width);
+        const height = Number(data?.height);
+        if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1) return;
+
+        const map = Array.from({ length: height }, () => Array(width).fill(0));
+        for (const cell of data.cells || []) {
+          if (!Array.isArray(cell) || cell.length !== 2) continue;
+          const index = Number(cell[0]);
+          const value = Number(cell[1]);
+          if (!Number.isInteger(index) || index < 0 || index >= width * height || !Number.isFinite(value)) continue;
+          map[Math.floor(index / width)][index % width] = value / 100;
+        }
+
+        lastMap = map;
+        const resolution = Number(data.resolution_m);
+        if (Number.isFinite(resolution) && resolution > 0) lastResolution = resolution;
+        const originCell = Number(data.origin_cell);
+        if (Number.isFinite(originCell)) lastOriginCell = originCell;
+        renderGrid(lastMap, lastRobot, lastOriginCell);
+      });
+
       window.addEventListener("resize", () => {
         if (lastMap) renderGrid(lastMap, lastRobot, lastOriginCell);
         else drawWaiting();

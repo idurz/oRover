@@ -183,6 +183,7 @@ class state(IntEnum):
     velocity                           = 5101
     goal                               = 5102
     motion                             = 5103
+    navigation_grid                    = 5104
 
     battery                            = 5200
     charging                           = 5201

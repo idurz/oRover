@@ -119,7 +119,7 @@ oRover uses a centralized socket-based logging system where all processes send l
 
 Starting from 2026-04-11, all log records include a `guid` field for message tracing:
 
-- **Each bus message** gets a unique UUID (`id` field) assigned when created by `send_event()` in [base_process.py](../pi/base_process.py)
+- **Each bus message** gets a unique 22-character base64url-encoded UUID (`id` field) assigned when created by `send_event()` in [base_process.py](../pi/base_process.py); legacy UUIDv4 IDs remain accepted
 - **All log records** associated with that message carry the same `guid` value, allowing complete end-to-end tracing across processes
 - Log context is propagated automatically using Python's `contextvars`, so handlers can log related activity with the same guid
 - When a message is received via `handle_message()`, the incoming message guid becomes the logging context, ensuring all processing steps are grouped

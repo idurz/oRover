@@ -7,6 +7,7 @@
 import json
 import zmq
 import oroverlib as orover
+from datetime import datetime
 
 def demogrify(topicmsg):
      # Find first occurrence of '{' to separate topic and message, then JSON decode the message part
@@ -74,8 +75,13 @@ while True:
     
     topic, msgdict = demogrify(msg)
     if topic not in ignore_topics:
+          timestamp = msgdict["ts"]
+          if type(timestamp) is int:
+               time_text = datetime.fromtimestamp(timestamp / 1000).strftime("%H:%M:%S")
+          else:
+               time_text = timestamp.split("T")[1][:8]
         # print 6 most right characters of id
         # next only time of timestamp '2026-06-13T21:32:39.215813'
-       print(f"{msgdict['id'][-13:]} {msgdict['ts'].split('T')[1][:8]} {msgdict['me'].ljust(8)} "\
+        print(f"{msgdict['id'][-13:]} {time_text} {msgdict['me'].ljust(8)} "\
              f"{msgdict['src']} => {(enum_to_name(msgdict['src']) or '').ljust(32)} "\
              f"{msgdict['reason']} => {(enum_to_name(msgdict['reason']) or '').ljust(32)} {msgdict['body']}")

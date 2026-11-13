@@ -160,6 +160,7 @@ This section contains the known enumerations and the explanation
 | velocity                   | Current speed and direction of the robot's movement                  |
 | goal                       | Current navigation goal or target position for the robot             |
 | motion                     | Current motion state or command of the robot (e.g., moving, stopped, turning) |
+| navigation_grid            | Sparse occupancy-grid snapshot, sent when changed and periodically for refresh |
 | battery                    | Current battery level or status of the robot                         |
 | charging                   | Charging status of the robot's battery                               |
 | power_source               | Current power source being used by the robot, see class power_source for possible values |

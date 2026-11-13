@@ -29,7 +29,7 @@ Parameters are specified in the `[orover]` section of `config.ini`:
 | max_logfiles | 10 | Maximum number of log files to keep; older files are automatically deleted |
 | logformat | %(asctime)s %(name)-8s %(levelname)-9s guid=%(guid)s %(message)s | Format string for log output |
 | logdatefmt | %Y-%m-%d %H:%M:%S | Date format used in log timestamps |
-| loglevel | DEBUG | Minimum log level to record (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
+| loglevel | DEBUG | Default process log level, overridden per process in `[logging]` (DEBUG, INFO, WARNING, ERROR, CRITICAL) |
 | writerecordtoconsole | False | If True, each received log record is also printed to stdout as LOGGER: <message> |
 
 Example:
@@ -42,15 +42,25 @@ loglevel = DEBUG
 logformat = %(asctime)s %(name)-8s %(levelname)-9s guid=%(guid)s %(message)s
 logdatefmt = %Y-%m-%d %H:%M:%S
 writerecordtoconsole = False
+
+[logging]
+eventbus = INFO
+boss = DEBUG
+hcsr04 = WARNING
+ugv = INFO
+webrover = INFO
 ```
+
+Each process applies its own level before sending records to the logserver, so
+raising a process level reduces both log file volume and logging socket traffic.
 
 ## Structured logging and message correlation
 
 Every log record includes a `guid` field that can be used to correlate logs across
 processes for a single message flow:
 
-- **Initial log capture**: When a process calls `send_event()`, it generates a UUID
-  and sets the logging context to that UUID. All logs during event construction carry
+- **Initial log capture**: When a process calls `send_event()`, it generates a compact
+  base64url-encoded UUID and sets the logging context to that ID. All logs during event construction carry
   that guid.
   
 - **Message handling**: When a process receives a message via `handle_message()`, the

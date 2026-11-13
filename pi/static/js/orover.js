@@ -25,9 +25,11 @@ socket.on("connect", () => {
 
 socket.on("heartbeat", (data) => {
   const tbody = document.getElementById("heartbeat");
-  const ts = data.ts && data.ts.includes("T")
-    ? data.ts.split("T")[1].substring(0, 8)
-    : data.ts;
+  const ts = typeof data.ts === "number"
+    ? new Date(data.ts).toTimeString().slice(0, 8)
+    : data.ts && data.ts.includes("T")
+      ? data.ts.split("T")[1].substring(0, 8)
+      : data.ts;
   let row = tbody.querySelector(`tr[data-name="${data.me}"]`);
   if (!row) {
     row = document.createElement("tr");

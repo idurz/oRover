@@ -11,6 +11,9 @@ import time
 import threading
 import oroverlib as orover
 from base_process import baseprocess
+from navigation_grid import encode_grid
+
+GRID_REFRESH_INTERVAL_S = 5.0
 
 
 # ---------------------------------------------------------------------------
@@ -193,7 +196,6 @@ def _grid_preview(cells, max_size=21):
 
 def _build_snapshot_payload():
     pose = p.nav_state["pose"]
-    grid = p.nav_state["grid"]
     motion = p.nav_state.get("motion", {})
     obstacles = p.nav_state.get("obstacles", {})
 
@@ -208,24 +210,39 @@ def _build_snapshot_payload():
             "right_mps": motion.get("right_speed"),
         },
         "obstacle_count": len(obstacles),
-        "grid": {
-            "resolution_m": grid["resolution_m"],
-            "preview": _grid_preview(grid["cells"], max_size=grid["preview_size"]),
-            "origin_cell": grid["origin_cell"] - max(0, (grid["size"] - grid["preview_size"]) // 2),
-        },
         "ts": p.nav_state.get("last_update_ts"),
     }
 
 
+def _build_grid_payload():
+    grid = p.nav_state["grid"]
+    preview = _grid_preview(grid["cells"], max_size=grid["preview_size"])
+    origin_cell = grid["origin_cell"] - max(0, (grid["size"] - grid["preview_size"]) // 2)
+    return encode_grid(preview, grid["resolution_m"], origin_cell)
+
+
 def publish_pose_loop(interval_s):
+    last_grid_payload = None
+    last_grid_publish = 0.0
     while p.running:
         time.sleep(interval_s)
         p.nav_state_lock.acquire()
         try:
-            payload = _build_snapshot_payload()
+            pose_payload = _build_snapshot_payload()
+            grid_payload = _build_grid_payload()
         finally:
             p.nav_state_lock.release()
-        p.send_event(src=orover.origin.orover_boss,reason=orover.state.pose,body=payload)
+        p.send_event(src=orover.origin.orover_boss,reason=orover.state.pose,body=pose_payload)
+
+        now = time.monotonic()
+        if grid_payload != last_grid_payload or now - last_grid_publish >= GRID_REFRESH_INTERVAL_S:
+            if p.send_event(
+                src=orover.origin.orover_boss,
+                reason=orover.state.navigation_grid,
+                body=grid_payload,
+            ):
+                last_grid_payload = grid_payload
+                last_grid_publish = now
 
 
 def snapshot_logger_loop(log_interval_s):

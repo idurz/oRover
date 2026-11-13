@@ -14,6 +14,66 @@ PI_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
 class UgvSerialErrorTest(unittest.TestCase):
+    def test_run_loop_drains_bus_and_reads_available_serial_bytes(self):
+        class Again(Exception):
+            pass
+
+        class FakeSub:
+            def __init__(self):
+                self.messages = ["cmd.set_motor_speed payload", "cmd.stop payload"]
+
+            def recv_string(self, flags):
+                if self.messages:
+                    return self.messages.pop(0)
+                raise Again
+
+        class FakePoller:
+            def __init__(self, sub):
+                self.sub = sub
+
+            def poll(self, timeout):
+                return [(self.sub, 1)]
+
+        base_module = types.ModuleType("base_process")
+        base_module.baseprocess = type("FakeBase", (), {})
+        serial_module = types.ModuleType("serial")
+        zmq_module = types.ModuleType("zmq")
+        zmq_module.Again = Again
+        zmq_module.NOBLOCK = 1
+        zmq_module.POLLIN = 1
+
+        with patch.dict(sys.modules, {
+            "base_process": base_module,
+            "serial": serial_module,
+            "zmq": zmq_module,
+        }), patch.object(sys, "path", [PI_DIR] + sys.path):
+            module = runpy.run_path(os.path.join(PI_DIR, "ugv.py"), run_name="ugv_test_module")
+
+        process = module["base"].__new__(module["base"])
+        process.running = True
+        process.sub = FakeSub()
+        process.poller = FakePoller(process.sub)
+        process.fetchtopics = Mock()
+        handled_messages = []
+
+        def handle_message(topicmsg):
+            handled_messages.append(topicmsg)
+            if len(handled_messages) == 2:
+                process.running = False
+
+        process.handle_message = handle_message
+        serial_port = Mock(in_waiting=4)
+        serial_port.read.return_value = b"data"
+        serial_handler = Mock()
+        module["ugv"].serial_port = serial_port
+        module["ugv"].handle_serial_input = serial_handler
+
+        process.run()
+
+        self.assertEqual(handled_messages, ["cmd.set_motor_speed payload", "cmd.stop payload"])
+        serial_port.read.assert_called_once_with(4)
+        serial_handler.assert_called_once_with(b"data")
+
     def run_with_serial_failure(self, failure_stage):
         serial_module = types.ModuleType("serial")
         serial_module.SerialException = type("SerialException", (OSError,), {})

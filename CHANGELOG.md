@@ -2,6 +2,21 @@
 
 All notable changes to this project are documented in this file.
 
+## Update 2026-11-13
+
+### Message bus and logging
+- Generate 22-character base64url UUIDv4 message IDs while continuing to accept legacy UUIDv4 strings.
+- Use Unix epoch milliseconds for new bus timestamps; continue accepting legacy ISO-8601 timestamps and format both for listener and browser display.
+- Add per-process log-level overrides with the global level as fallback; set the example `hcsr04` level to `WARNING`.
+- Summarize navigation-grid log records instead of logging their full payloads.
+
+### UGV and navigation responsiveness
+- Drain queued UGV bus messages in bounded batches and read only buffered serial bytes, avoiding serial-timeout delays to command handling.
+- Stop the HCSR04 process cleanly when no valid sensors are configured.
+- Publish compact pose updates separately from sparse navigation-grid snapshots; refresh the grid when it changes and periodically for reconnects.
+- Reconstruct the dense grid for the browser and add tests for message IDs, grid encoding and separation, and UGV event-loop behavior.
+- Include originating bus message IDs in UGV serial-write logs for correlation.
+
 ## Update 2026-11-11
 
 ### Installation and configuration

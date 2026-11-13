@@ -46,8 +46,8 @@ enum reason values. This is how dispatch is built in the current codebase.
 ## Message validation
 Incoming messages are validated before dispatch. The validation includes:
 - required fields present
-- valid UUID in `id`
-- valid timestamp in `ts`
+- valid compact base64url UUID or legacy UUIDv4 in `id`
+- epoch-millisecond timestamp or legacy ISO-8601 string in `ts`
 - valid source (`src`) enum value
 - valid priority (`prio`) enum value
 

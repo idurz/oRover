@@ -32,13 +32,32 @@ name = value
 |---|---|---|
 | python_exec | python3 | Python executable used by launcher |
 | heartbeat_interval | 10 | Interval (seconds) between heartbeat messages; `0` disables heartbeat |
-| loglevel | DEBUG | Log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
+| loglevel | DEBUG | Default log level for processes without a `[logging]` override (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
 | logdir | logs | Directory where log files are stored |
 | logfile | orover.log | Log file basename (timestamp appended automatically) |
 | max_logfiles | 10 | Maximum number of log files to retain; older files are automatically deleted |
 | logformat | %(asctime)s %(name)-8s %(levelname)-9s guid=%(guid)s %(message)s | Log format string; includes guid for message tracing |
 | logdatefmt | %Y-%m-%d %H:%M:%S | Date format used in logs |
 | writerecordtoconsole | False | Tells logserver to also print each record to console |
+
+### Section [logging]
+Set individual process log levels using the process names from `[scripts]`. These
+settings override `[orover] loglevel`; omitted processes inherit the global level.
+Only records at or above the selected level are sent to the logserver.
+
+| name | description |
+|---|---|
+| eventbus, boss, hcsr04, ugv, webrover | Per-process log level (`DEBUG`, `INFO`, `WARNING`, `ERROR`, `CRITICAL`) |
+
+Example:
+```ini
+[logging]
+eventbus = INFO
+boss = DEBUG
+hcsr04 = WARNING
+ugv = INFO
+webrover = INFO
+```
 
 ### Section [app]
 | name | default | description |

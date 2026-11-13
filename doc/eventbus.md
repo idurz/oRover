@@ -18,8 +18,8 @@ Example payload:
 
 ```json
 {
-  "id": "uuid4",
-  "ts": "2026-04-08T12:34:56.123456",
+  "id": "AbCdEfGhIjKlMnOpQrStUw",
+  "ts": 1775651696123,
   "src": 3000,
   "me": "hcsr04",
   "host": "robot",
@@ -30,14 +30,17 @@ Example payload:
 ```
 
 Key fields:
-- `id`: unique message id (UUID)
-- `ts`: timestamp (`%Y-%m-%dT%H:%M:%S.%f`)
+- `id`: unique message id (22-character base64url-encoded UUID; legacy UUIDv4 strings are accepted)
+- `ts`: Unix epoch timestamp in milliseconds; legacy ISO-8601 strings are accepted
 - `src`: source enum value (`origin`, `actuator`, or `controller`)
 - `prio`: priority enum value
 - `reason`: command/state/event enum value
 - `body`: message-specific JSON object
 
 See [enumeration.md](enumeration.md) for enum definitions.
+
+Navigation pose updates use `state.pose`; sparse occupancy-grid snapshots use
+`state.navigation_grid` and contain only nonzero cells as flat index/value pairs.
 
 ## Endpoints (from config.ini)
 The default endpoint roles are:

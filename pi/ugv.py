@@ -149,13 +149,13 @@ class handler:
         # Retrieve IMU Data {"T":126} Used to obtain IMU information, including heading angle, geomagnetic field, acceleration, attitude, temperature, etc.
         b.logger.debug(f"cmd_getParam -> {message}")
         s = json.dumps({"T":"126"})
-        ugv.write_serial(s)
+        ugv.write_serial(message['id'],s)
 
     def cmd_setParam(self,message):
         # Retrieve IMU Data
         b.logger.debug(f"cmd_setParam -> {message}")
         s = json.dumps({"T":3,"lineNum":2,"Text":"Rudi"})
-        ugv.write_serial(s)
+        ugv.write_serial(message['id'],s)
 
     def cmd_set_motor_speed(self, message):
         # Handle motor speed command
@@ -169,7 +169,7 @@ class handler:
         # set this speed as default for move and moveTo commands, until another speed command is received
         # ugv.linear_speed = body.get("left_speed")
         # ugv.angular_speed = body.get("right_speed")
-        ugv.write_serial(s)
+        ugv.write_serial(message['id'],s)
 
     def cmd_stop(self, message): # CvK Stop if threading is activated to stop
         b.logger.info("Stop command received")
@@ -232,7 +232,7 @@ class ugv:
         while b.running:
             if self.ugv_updates_enabled:
                 serialmsg = json.dumps({"T":"130"})
-                self.write_serial(serialmsg)   
+                self.write_serial("update_loop",serialmsg)   
             time.sleep(self.ugv_updates_interval)
 
     def open_serial(self):
@@ -420,10 +420,10 @@ class ugv:
         else:
             b.logger.debug(f"serial_dispatch -> unknown typed message T={msg_type}")
 
-    def write_serial(self,serialmsg):
+    def write_serial(self,msgid,serialmsg):
         if self.serial_port and serialmsg:
             s = f"{serialmsg}\n"
-            b.logger.debug(f"Writing to serial port: {s}")
+            b.logger.debug(f"{msgid} Writing to serial port: {s}")
             self.serial_port.write(s.encode())
 
     def _move_segment(self, left_speed = 0, right_speed = 0, distance=None, angle=None):
@@ -524,13 +524,19 @@ class base(baseprocess):
             # read topic and message from the SUB socket, then handle the message
             events = dict(self.poller.poll(timeout=10))
             if self.sub in events:
-                topicmsg = self.sub.recv_string()
-                self.handle_message(topicmsg)
+                for _ in range(32):
+                    try:
+                        topicmsg = self.sub.recv_string(flags=zmq.NOBLOCK)
+                    except zmq.Again:
+                        break
+                    self.handle_message(topicmsg)
 
-            # Check for serial data regardless of zmq events, to ensure we don't miss any incoming data
-            data = ugv.serial_port.read(1024)
-            if data:
-                ugv.handle_serial_input(data)
+            # Read only buffered bytes so serial timeouts cannot delay bus commands.
+            serial_bytes_available = ugv.serial_port.in_waiting
+            if serial_bytes_available:
+                data = ugv.serial_port.read(serial_bytes_available)
+                if data:
+                    ugv.handle_serial_input(data)
 
 
 #### Main execution starts here ####
